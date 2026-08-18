@@ -20,11 +20,13 @@ https://github.com/stoatchat/self-hosted na hora do bootstrap.
 
 ## Convites de conta
 
-Pela API autenticada (admin, escopo `users:write`):
+Pela API autenticada (admin, escopo `users:write`, JWT ou chave `mbk_`):
 
 `POST https://api.muhbianco.com.br/api/latest/muchat/invites`
 
 Body: `{"count":1}` — devolve o link `/login/create/<codigo>`.
+
+HTTP custom no agente: Bearer = chave `mbk_` da conta admin (não use access token de 15 min).
 
 Na VPS ainda vale:
 
@@ -48,6 +50,6 @@ sem apagar o router `api.dev.muhbianco.com.br`.
 
 Portas de mídia no host: TCP 7881, UDP 3478, UDP 50000-50100.
 
-O gerador interno de convites escuta só em `127.0.0.1:8091`.
+O gerador interno de convites escuta em `127.0.0.1:8091` e na `chatbot-net` como `muchat-invite`.
 
 Secrets (`secrets.env`, `.env`, `livekit.yml`) ficam só na VPS.

@@ -5,6 +5,9 @@ networks:
   default:
     name: stoat-net
     external: true
+  chatbot:
+    name: chatbot-net
+    external: true
 
 services:
   caddy:
@@ -29,6 +32,7 @@ services:
 
   invite:
     image: muchat-invite:latest
+    container_name: muchat-invite
     build:
       context: .
       dockerfile: invite/Dockerfile
@@ -38,6 +42,11 @@ services:
       PUBLIC_URL: ${PUBLIC_URL:-https://chat.muhbianco.com.br}
     ports:
       - "127.0.0.1:8091:8091"
+    networks:
+      default: {}
+      chatbot:
+        aliases:
+          - muchat-invite
     restart: always
     depends_on:
       - database

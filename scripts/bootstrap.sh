@@ -11,11 +11,20 @@ if [[ ! -f "$STOAT_DIR/compose.yml" ]]; then
 fi
 
 copy_overlay() {
+  installer=""
+  if [[ -f "$STOAT_DIR/brand/public/download/Muchat-Setup.exe" ]]; then
+    installer="$(mktemp)"
+    cp -a "$STOAT_DIR/brand/public/download/Muchat-Setup.exe" "$installer"
+  fi
   cp -a "$MUCHAT_DIR/Caddyfile" "$STOAT_DIR/Caddyfile"
   cp -a "$MUCHAT_DIR/compose.override.yml" "$STOAT_DIR/compose.override.yml"
   rm -rf "$STOAT_DIR/brand" "$STOAT_DIR/invite"
   cp -a "$MUCHAT_DIR/brand" "$STOAT_DIR/brand"
   cp -a "$MUCHAT_DIR/invite" "$STOAT_DIR/invite"
+  if [[ -n "$installer" ]]; then
+    mkdir -p "$STOAT_DIR/brand/public/download"
+    mv "$installer" "$STOAT_DIR/brand/public/download/Muchat-Setup.exe"
+  fi
 }
 
 copy_overlay
