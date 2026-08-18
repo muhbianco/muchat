@@ -30,7 +30,6 @@ DISCORD_REDIRECT_URI = os.environ.get(
     f"{PUBLIC_URL}/oauth/callback",
 )
 COOKIE_NAME = "muchat_gate"
-IN_COOKIE_NAME = "muchat_in"
 COOKIE_MAX_AGE = int(os.environ.get("COOKIE_MAX_AGE", str(7 * 24 * 3600)))
 STATE_MAX_AGE = 600
 DISCORD_API = "https://discord.com/api/v10"
@@ -381,7 +380,13 @@ def _page(session: dict[str, str] | None, error: str | None) -> bytes:
           valid: true,
         }},
       }};
-      const go = () => location.replace("/");
+      const go = () => {{
+        document.cookie = "muchat_ok=1; Path=/; Secure; SameSite=Lax; Max-Age=604800";
+        location.replace("/");
+      }};
+      const fail = () => {{
+        msg.textContent = "Não deu para gravar a sessão neste navegador. Libere cookies/armazenamento e tente de novo.";
+      }};
       const raw = JSON.stringify(auth);
       const req = indexedDB.open("localforage");
       req.onupgradeneeded = () => {{
@@ -395,16 +400,16 @@ def _page(session: dict[str, str] | None, error: str | None) -> bytes:
           const db = req.result;
           const name = db.objectStoreNames.contains("keyvaluepairs")
             ? "keyvaluepairs" : db.objectStoreNames[0];
-          if (!name) {{ go(); return; }}
+          if (!name) {{ fail(); return; }}
           const tx = db.transaction(name, "readwrite");
           tx.objectStore(name).put(raw, "auth");
           tx.oncomplete = go;
-          tx.onerror = go;
+          tx.onerror = fail;
         }} catch (e) {{
-          go();
+          fail();
         }}
       }};
-      req.onerror = go;
+      req.onerror = fail;
     }}
   </script>
 </body>
@@ -452,12 +457,6 @@ class Handler(BaseHTTPRequestHandler):
         if extra:
             headers.update(extra)
         self._send(302, b"", extra=headers)
-
-    def _in_cookie_header(self) -> str:
-        return (
-            f"{IN_COOKIE_NAME}=1; Path=/; HttpOnly; Secure; SameSite=Lax; "
-            f"Max-Age={COOKIE_MAX_AGE}"
-        )
 
     def _set_cookie_header(self, token: str) -> str:
         return (
@@ -522,7 +521,11 @@ class Handler(BaseHTTPRequestHandler):
             print(f"sso account error: {exc}", file=sys.stderr)
             self._send(502, _page(None, "Falha ao abrir o chat. Tente de novo."))
             return
-        self._send(200, _page(session, None), cookies=[self._in_cookie_header()])
+        print(
+            f"sso session token_len={len(session['token'])} user_id_len={len(session['user_id'])}",
+            file=sys.stderr,
+        )
+        self._send(200, _page(session, None))
 
     def _handle_forward(self) -> None:
         identity = self._identity()

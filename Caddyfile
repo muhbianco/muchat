@@ -39,7 +39,7 @@
 
 	@needs_sso {
 		not path /oauth* /sso* /api* /ws* /autumn* /january* /gifbox* /livekit* /ingress* /.well-known*
-		not header Cookie *muchat_in=*
+		not header Cookie *muchat_ok=*
 	}
 	route @needs_sso {
 		redir /sso 302
