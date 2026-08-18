@@ -10,6 +10,7 @@ const ALLOWED_PERMISSIONS = new Set([
   "audioCapture",
   "videoCapture",
   "fullscreen",
+  "display-capture",
   "clipboard-sanitized-write",
   "clipboard-read",
 ]);

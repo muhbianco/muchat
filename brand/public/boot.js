@@ -16,6 +16,77 @@
     ringtoneOutgoing: "/muchat-brand/sounds/ringtoneOutgoing.wav",
   };
   const FALLBACK_SOUND = "/muchat-brand/sounds/event.wav";
+  const ULID = /^[0-9A-HJKMNP-TV-Z]{26}$/i;
+  const usersByName = new Map();
+  let sessionToken = "";
+  let pendingMenuUser = "";
+
+  function rememberUser(id, username) {
+    if (typeof id !== "string" || !ULID.test(id)) return;
+    if (typeof username !== "string" || !username) return;
+    usersByName.set(username.toLowerCase(), id);
+  }
+
+  function indexTree(value, depth) {
+    if (depth > 6 || !value || typeof value !== "object") return;
+    if (Array.isArray(value)) {
+      const cap = Math.min(value.length, 400);
+      for (let i = 0; i < cap; i++) indexTree(value[i], depth + 1);
+      return;
+    }
+    rememberUser(value._id || value.id, value.username);
+    for (const nested of Object.values(value)) indexTree(nested, depth + 1);
+  }
+
+  function tokenFromHeaders(headers) {
+    if (!headers) return "";
+    if (typeof headers.get === "function") {
+      return headers.get("X-Session-Token") || headers.get("x-session-token") || "";
+    }
+    return headers["X-Session-Token"] || headers["x-session-token"] || "";
+  }
+
+  const origFetch = window.fetch.bind(window);
+  window.fetch = function patchedFetch(input, init) {
+    const token = tokenFromHeaders(init && init.headers);
+    if (token) sessionToken = token;
+    return origFetch(input, init).then((res) => {
+      const copy = res.clone();
+      copy.json().then((body) => indexTree(body, 0)).catch(() => {});
+      return res;
+    });
+  };
+
+  const NativeWebSocket = window.WebSocket;
+  window.WebSocket = class MuchatWebSocket extends NativeWebSocket {
+    constructor(url, protocols) {
+      super(url, protocols);
+      this.addEventListener("message", (event) => {
+        if (typeof event.data !== "string") return;
+        try {
+          indexTree(JSON.parse(event.data), 0);
+        } catch {
+          /* ignore non-JSON frames */
+        }
+      });
+    }
+  };
+
+  document.addEventListener(
+    "contextmenu",
+    (event) => {
+      let el = event.target;
+      for (let i = 0; i < 8 && el; i++) {
+        const first = ((el.innerText || "").trim().split("\n")[0] || "").trim();
+        if (first.length >= 2 && first.length <= 32 && !/kick|volume|mute|profile/i.test(first)) {
+          pendingMenuUser = first;
+          break;
+        }
+        el = el.parentElement;
+      }
+    },
+    true
+  );
 
   const paint = () => {
     if (document.title && document.title.includes("Stoat")) {
@@ -273,6 +344,112 @@
     dockPadded = sidebar;
   }
 
+  function serverIdFromUrl() {
+    const match = location.pathname.match(/\/server\/([0-9A-HJKMNP-TV-Z]{26})/i);
+    return match ? match[1] : "";
+  }
+
+  function findKickButton() {
+    for (const el of document.querySelectorAll("button, [role='button']")) {
+      const label = (el.textContent || "").replace(/\s+/g, " ").trim();
+      if (!/kick member/i.test(label) || label.length > 48) continue;
+      const box = el.getBoundingClientRect();
+      if (box.width > 0 && box.height > 0) return el;
+    }
+    return null;
+  }
+
+  function menuRootFrom(el) {
+    let cur = el;
+    for (let i = 0; i < 14 && cur; i++) {
+      const text = cur.textContent || "";
+      if (/kick member/i.test(text) && /volume/i.test(text)) return cur;
+      cur = cur.parentElement;
+    }
+    return el.parentElement || document.body;
+  }
+
+  async function captureUserId(menu) {
+    const named = usersByName.get(pendingMenuUser.toLowerCase());
+    if (named) return named;
+    const copy = [...menu.querySelectorAll("button, [role='button']")].find((el) =>
+      (el.textContent || "").includes("Copy user ID")
+    );
+    if (!copy) return "";
+    let captured = "";
+    const orig = navigator.clipboard.writeText.bind(navigator.clipboard);
+    navigator.clipboard.writeText = async (text) => {
+      captured = String(text || "");
+      return orig(text);
+    };
+    try {
+      copy.click();
+      await Promise.resolve();
+    } finally {
+      navigator.clipboard.writeText = orig;
+    }
+    return ULID.test(captured) ? captured : "";
+  }
+
+  async function disconnectFromVoice(btn) {
+    const serverId = serverIdFromUrl();
+    const menu = menuRootFrom(btn);
+    const userId = await captureUserId(menu);
+    if (!serverId || !userId || !sessionToken) {
+      btn.textContent = "Não deu para identificar o usuário";
+      return;
+    }
+    btn.disabled = true;
+    try {
+      const res = await origFetch(`/api/servers/${serverId}/members/${userId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Session-Token": sessionToken,
+        },
+        body: JSON.stringify({ remove: ["VoiceChannel"] }),
+      });
+      if (res.ok) {
+        btn.textContent = "Removido da call";
+        return;
+      }
+      btn.textContent = res.status === 403 ? "Sem permissão" : "Não foi possível remover";
+    } catch {
+      btn.textContent = "Não foi possível remover";
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function syncDisconnectItem() {
+    const kick = findKickButton();
+    const existing = document.getElementById("muchat-disconnect-voice");
+    if (!kick) {
+      if (existing) existing.remove();
+      return;
+    }
+    const menu = menuRootFrom(kick);
+    if (!(menu.textContent || "").includes("Volume")) {
+      if (existing) existing.remove();
+      return;
+    }
+    if (existing && menu.contains(existing)) return;
+    if (existing) existing.remove();
+    const item = document.createElement("button");
+    item.type = "button";
+    item.id = "muchat-disconnect-voice";
+    item.className = "muchat-disconnect-voice";
+    item.textContent = "Remover da call";
+    item.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      disconnectFromVoice(item);
+    });
+    kick.parentElement
+      ? kick.parentElement.insertBefore(item, kick)
+      : kick.before(item);
+  }
+
   const voiceMo = new MutationObserver(() => syncVoiceStage());
   const startVoiceStage = () => {
     const host = document.getElementById("floating") || document.body;
@@ -282,9 +459,11 @@
     setInterval(() => {
       syncVoiceStage();
       syncVoiceDock();
+      syncDisconnectItem();
     }, 400);
     syncVoiceStage();
     syncVoiceDock();
+    syncDisconnectItem();
   };
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", startVoiceStage);

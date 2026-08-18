@@ -2,6 +2,7 @@
 
 const { app, BrowserWindow, Menu, Tray, session, shell } = require("electron");
 const path = require("path");
+const { setupScreenShare } = require("./capture");
 const { APP_ID, APP_ORIGIN, isAppOrigin, isAllowedPermission } = require("./permissions");
 const { shouldHideToTray } = require("./lifecycle");
 
@@ -66,6 +67,7 @@ function createWindow() {
     icon: iconPath(),
     autoHideMenuBar: true,
     webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       sandbox: true,
       backgroundThrottling: false,
@@ -115,6 +117,7 @@ if (!app.requestSingleInstanceLock()) {
 
   app.whenReady().then(() => {
     grantAppPermissions();
+    setupScreenShare(() => mainWindow);
     createTray();
     createWindow();
     app.on("activate", () => {

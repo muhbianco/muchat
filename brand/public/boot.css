@@ -121,3 +121,22 @@ html.muchat-voice-stage #floating .vc_tile:not(:has(video)) {
 .muchat-voice-dock__btn.is-hangup:hover {
   background: #7a2e20;
 }
+
+.muchat-disconnect-voice {
+  display: flex;
+  width: 100%;
+  box-sizing: border-box;
+  align-items: center;
+  border: 0;
+  background: transparent;
+  color: #e85a2a;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.muchat-disconnect-voice:hover {
+  background: rgba(232, 90, 42, 0.12);
+}

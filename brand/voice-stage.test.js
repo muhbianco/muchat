@@ -20,3 +20,9 @@ test("dock de voz no rodape da lista de canais", () => {
   assert.match(js, /callActions/);
   assert.match(js, /data-act="hangup"/);
 });
+
+test("menu remove usuario so da call", () => {
+  assert.match(js, /Remover da call/);
+  assert.match(js, /VoiceChannel/);
+  assert.match(css, /muchat-disconnect-voice/);
+});

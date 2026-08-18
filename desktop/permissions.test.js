@@ -14,6 +14,7 @@ test("aceita só o chat Muchat", () => {
 test("libera notificação e mídia no origin do app", () => {
   const origin = "https://chat.muhbianco.com.br/";
   assert.equal(isAllowedPermission("notifications", origin), true);
+  assert.equal(isAllowedPermission("display-capture", origin), true);
   assert.equal(isAllowedPermission("audioCapture", origin), true);
   assert.equal(isAllowedPermission("geolocation", origin), false);
   assert.equal(isAllowedPermission("notifications", "https://evil.example/"), false);
