@@ -11,6 +11,7 @@ services:
     ports: !override []
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./brand/public:/muchat-public:ro
     depends_on:
       - web
       - api
@@ -25,6 +26,26 @@ services:
         limits:
           cpus: "0.25"
           memory: 128M
+
+  invite:
+    image: muchat-invite:latest
+    build:
+      context: .
+      dockerfile: invite/Dockerfile
+    environment:
+      MONGO_URL: mongodb://database:27017
+      MUCHAT_INVITE_SECRET: ${MUCHAT_INVITE_SECRET:?MUCHAT_INVITE_SECRET missing}
+      PUBLIC_URL: ${PUBLIC_URL:-https://chat.muhbianco.com.br}
+    ports:
+      - "127.0.0.1:8091:8091"
+    restart: always
+    depends_on:
+      - database
+    deploy:
+      resources:
+        limits:
+          cpus: "0.10"
+          memory: 64M
 
   livekit:
     ports:
@@ -79,6 +100,9 @@ services:
           memory: 256M
 
   web:
+    volumes:
+      - ./brand/generated-index.html:/app/dist_injected/index.html:ro
+      - ./brand/generated-index.html:/app/dist/index.html:ro
     deploy:
       resources:
         limits:

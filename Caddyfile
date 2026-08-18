@@ -3,6 +3,29 @@
 		X-Robots-Tag "noindex, nofollow"
 	}
 
+	route /muchat-brand* {
+		uri strip_prefix /muchat-brand
+		root * /muchat-public
+		file_server
+	}
+
+	route /download {
+		redir /download/ 302
+	}
+
+	route /download* {
+		uri strip_prefix /download
+		root * /muchat-public/download
+		file_server
+	}
+
+	route /manifest.webmanifest {
+		header Content-Type application/manifest+json
+		rewrite * /manifest.webmanifest
+		root * /muchat-public
+		file_server
+	}
+
 	route /.well-known/stoat {
 		uri strip_prefix /.well-known/stoat
 		header {

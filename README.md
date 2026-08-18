@@ -1,6 +1,6 @@
-# Muchat — chat privado da MuhBianco em chat.muhbianco.com.br
+# Muchat — chat privado em chat.muhbianco.com.br
 #
-# Caixa preta: Stoat (ex-Revolt) + LiveKit neste repo.
+# Marca própria (não é o site MuhBianco). Stoat + LiveKit neste overlay.
 # Login nativo. Contas novas só com convite de instância.
 
 Este repositório é o overlay da hel1. O compose upstream vem de
@@ -13,16 +13,24 @@ https://github.com/stoatchat/self-hosted na hora do bootstrap.
 - Cadastro: `invite_only = true` no `Revolt.toml`.
 - Primogênito da instância: `contato@muhbianco.com.br` (`privileged: true`).
 
+## Marca e download
+
+- PWA/título: Muchat (`brand/`).
+- Windows: `https://chat.muhbianco.com.br/download`
+
 ## Convites de conta
 
-Não é o convite de servidor do app. É um código em `account_invites`:
+Pela API autenticada (admin, escopo `users:write`):
+
+`POST https://api.muhbianco.com.br/api/latest/muchat/invites`
+
+Body: `{"count":1}` — devolve o link `/login/create/<codigo>`.
+
+Na VPS ainda vale:
 
 ```bash
 bash /usr/src/muchat/scripts/create-invite.sh
-# ou: bash /usr/src/muchat/scripts/create-invite.sh codigo-amigavel
 ```
-
-A pessoa abre o link `/login/create/<codigo>` (ou cola o código no campo Invite).
 
 ## VPS
 
@@ -39,5 +47,7 @@ fragmento em `traefik/chat.yaml` (router `Host(chat.muhbianco.com.br)`),
 sem apagar o router `api.dev.muhbianco.com.br`.
 
 Portas de mídia no host: TCP 7881, UDP 3478, UDP 50000-50100.
+
+O gerador interno de convites escuta só em `127.0.0.1:8091`.
 
 Secrets (`secrets.env`, `.env`, `livekit.yml`) ficam só na VPS.

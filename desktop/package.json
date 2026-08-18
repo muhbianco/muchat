@@ -1,0 +1,32 @@
+{
+  "name": "muchat",
+  "productName": "Muchat",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Muchat desktop",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win portable"
+  },
+  "author": "Muchat",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "electron": "37.2.6",
+    "electron-builder": "26.0.12"
+  },
+  "build": {
+    "appId": "br.com.muhbianco.muchat",
+    "productName": "Muchat",
+    "files": ["main.js", "icon.png"],
+    "directories": { "output": "dist" },
+    "win": {
+      "icon": "icon.png",
+      "target": ["portable"],
+      "signAndEditExecutable": false
+    },
+    "portable": {
+      "artifactName": "Muchat-Setup.exe"
+    }
+  }
+}

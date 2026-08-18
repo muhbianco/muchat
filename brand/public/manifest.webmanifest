@@ -1,0 +1,25 @@
+{
+  "name": "Muchat",
+  "short_name": "Muchat",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#141210",
+  "lang": "pt-BR",
+  "scope": "/",
+  "description": "Chat privado. Entra quem é convidado.",
+  "categories": ["communication", "chat", "messaging"],
+  "orientation": "any",
+  "theme_color": "#141210",
+  "icons": [
+    {
+      "src": "/muchat-brand/icon.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    },
+    {
+      "src": "/muchat-brand/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    }
+  ]
+}

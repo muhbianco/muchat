@@ -10,3 +10,7 @@ compose.override.yml.old
 .DS_Store
 __pycache__/
 *.pyc
+desktop/node_modules/
+desktop/dist/
+brand/public/download/*.exe
+
