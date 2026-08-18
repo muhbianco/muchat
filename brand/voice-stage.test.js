@@ -29,5 +29,6 @@ test("menu remove usuario so da call", () => {
 
 test("getUserMedia tenta de novo sem deviceId velho", () => {
   assert.match(js, /stripVideoDeviceId/);
+  assert.match(js, /unconstrainedVideo/);
   assert.match(js, /patchGetUserMedia/);
 });

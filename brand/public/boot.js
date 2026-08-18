@@ -81,18 +81,39 @@
     return { ...constraints, video: Object.keys(nextVideo).length ? nextVideo : true };
   }
 
+  function unconstrainedVideo(constraints) {
+    if (!constraints || typeof constraints !== "object" || !constraints.video) return null;
+    if (constraints.video === true) return null;
+    return { ...constraints, video: true };
+  }
+
   function patchGetUserMedia() {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
-    const orig = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
-    navigator.mediaDevices.getUserMedia = async (constraints) => {
+    const devices = navigator.mediaDevices;
+    if (!devices || !devices.getUserMedia) return;
+    const orig = devices.getUserMedia.bind(devices);
+    const wrapped = async (constraints) => {
       try {
         return await orig(constraints);
       } catch (err) {
-        const retried = stripVideoDeviceId(constraints);
-        if (!retried) throw err;
-        return orig(retried);
+        const withoutId = stripVideoDeviceId(constraints);
+        if (withoutId) {
+          try {
+            return await orig(withoutId);
+          } catch {
+            /* fall through to unconstrained video */
+          }
+        }
+        const plain = unconstrainedVideo(constraints);
+        if (!plain) throw err;
+        return orig(plain);
       }
     };
+    devices.getUserMedia = wrapped;
+    if (MediaDevices && MediaDevices.prototype) {
+      MediaDevices.prototype.getUserMedia = function (constraints) {
+        return wrapped(constraints);
+      };
+    }
   }
   patchGetUserMedia();
 
