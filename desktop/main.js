@@ -1,6 +1,6 @@
 "use strict";
 
-const { app, BrowserWindow, Menu, Tray, session, shell } = require("electron");
+const { app, BrowserWindow, Menu, Tray, session, shell, systemPreferences } = require("electron");
 const path = require("path");
 const { setupScreenShare } = require("./capture");
 const { APP_ID, APP_ORIGIN, isAppOrigin, isAllowedPermission } = require("./permissions");
@@ -69,7 +69,7 @@ function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
-      sandbox: true,
+      sandbox: false,
       backgroundThrottling: false,
     },
   });
@@ -100,12 +100,40 @@ function createWindow() {
 
 function grantAppPermissions() {
   const sess = session.defaultSession;
-  sess.setPermissionRequestHandler((_wc, permission, callback, details) => {
-    callback(isAllowedPermission(permission, details?.requestingUrl || details?.securityOrigin));
+  const allow = (wc, permission, origin) => {
+    if (isAllowedPermission(permission, origin)) return true;
+    try {
+      return isAppOrigin(wc.getURL()) && isAllowedPermission(permission, APP_ORIGIN);
+    } catch {
+      return false;
+    }
+  };
+  sess.setPermissionRequestHandler((wc, permission, callback, details) => {
+    callback(allow(wc, permission, details?.requestingUrl || details?.securityOrigin));
   });
-  sess.setPermissionCheckHandler((_wc, permission, requestingOrigin) =>
-    isAllowedPermission(permission, requestingOrigin)
+  sess.setPermissionCheckHandler((wc, permission, requestingOrigin) =>
+    allow(wc, permission, requestingOrigin)
   );
+  if (typeof sess.setDevicePermissionHandler === "function") {
+    sess.setDevicePermissionHandler((details) => {
+      if (!isAppOrigin(details.origin)) return false;
+      return (
+        details.deviceType === "audioinput" ||
+        details.deviceType === "audiooutput" ||
+        details.deviceType === "videoinput"
+      );
+    });
+  }
+}
+
+async function askOsMediaAccess() {
+  if (typeof systemPreferences.askForMediaAccess !== "function") return;
+  try {
+    await systemPreferences.askForMediaAccess("microphone");
+    await systemPreferences.askForMediaAccess("camera");
+  } catch {
+    /* Windows does not implement this */
+  }
 }
 
 if (!app.requestSingleInstanceLock()) {
@@ -115,8 +143,9 @@ if (!app.requestSingleInstanceLock()) {
     showMainWindow();
   });
 
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
     grantAppPermissions();
+    await askOsMediaAccess();
     setupScreenShare(() => mainWindow);
     createTray();
     createWindow();

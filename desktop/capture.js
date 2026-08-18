@@ -1,47 +1,53 @@
 "use strict";
 
-const { desktopCapturer, ipcMain, session } = require("electron");
-const { mapSources } = require("./capture-map");
+const { desktopCapturer, ipcMain, session, Menu } = require("electron");
+
+function pickDesktopSource(sources, request, win, callback) {
+  let settled = false;
+  const done = (result) => {
+    if (settled) return;
+    settled = true;
+    callback(result);
+  };
+
+  const items = sources.map((source) => ({
+    label: String(source.name || "Fonte").slice(0, 80),
+    click: () => {
+      done(
+        request.audioRequested
+          ? { video: source, audio: "loopback" }
+          : { video: source }
+      );
+    },
+  }));
+  items.push({ type: "separator" });
+  items.push({ label: "Cancelar", click: () => done({}) });
+
+  const menu = Menu.buildFromTemplate(items);
+  const opts = { callback: () => done({}) };
+  if (win && !win.isDestroyed()) opts.window = win;
+  menu.popup(opts);
+}
 
 function setupScreenShare(getWindow) {
   session.defaultSession.setDisplayMediaRequestHandler(
     (request, callback) => {
       desktopCapturer
-        .getSources({ types: ["screen", "window"], fetchWindowIcons: true })
+        .getSources({
+          types: ["screen", "window"],
+          thumbnailSize: { width: 0, height: 0 },
+          fetchWindowIcons: true,
+        })
         .then((sources) => {
           if (!sources.length) {
             callback({});
             return;
           }
-          if (sources.length === 1) {
-            callback(
-              request.audioRequested
-                ? { video: sources[0], audio: "loopback" }
-                : { video: sources[0] }
-            );
-            return;
-          }
-          const win = getWindow();
-          if (!win || win.isDestroyed()) {
-            callback({ video: sources[0] });
-            return;
-          }
-          ipcMain.once("screenPickerCallback", (_event, idx, audio) => {
-            if (!Number.isInteger(idx) || idx < 0 || idx >= sources.length) {
-              callback({});
-              return;
-            }
-            if (audio || request.audioRequested) {
-              callback({ video: sources[idx], audio: "loopback" });
-              return;
-            }
-            callback({ video: sources[idx] });
-          });
-          win.webContents.send("screenPicker", mapSources(sources));
+          pickDesktopSource(sources, request, getWindow(), callback);
         })
         .catch(() => callback({}));
     },
-    { useSystemPicker: true }
+    { useSystemPicker: false }
   );
 
   ipcMain.on("minimise", () => {

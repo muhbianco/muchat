@@ -72,6 +72,30 @@
     }
   };
 
+  function stripVideoDeviceId(constraints) {
+    if (!constraints || typeof constraints !== "object") return null;
+    const video = constraints.video;
+    if (!video || typeof video !== "object" || video.deviceId == null) return null;
+    const nextVideo = { ...video };
+    delete nextVideo.deviceId;
+    return { ...constraints, video: Object.keys(nextVideo).length ? nextVideo : true };
+  }
+
+  function patchGetUserMedia() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+    const orig = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+    navigator.mediaDevices.getUserMedia = async (constraints) => {
+      try {
+        return await orig(constraints);
+      } catch (err) {
+        const retried = stripVideoDeviceId(constraints);
+        if (!retried) throw err;
+        return orig(retried);
+      }
+    };
+  }
+  patchGetUserMedia();
+
   document.addEventListener(
     "contextmenu",
     (event) => {

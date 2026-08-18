@@ -9,6 +9,8 @@ const ALLOWED_PERMISSIONS = new Set([
   "mediaKeySystem",
   "audioCapture",
   "videoCapture",
+  "camera",
+  "microphone",
   "fullscreen",
   "display-capture",
   "clipboard-sanitized-write",
@@ -17,7 +19,12 @@ const ALLOWED_PERMISSIONS = new Set([
 
 function isAppOrigin(url) {
   if (!url || typeof url !== "string") return false;
-  return url === APP_ORIGIN || url.startsWith(`${APP_ORIGIN}/`);
+  if (url === APP_ORIGIN || url.startsWith(`${APP_ORIGIN}/`)) return true;
+  try {
+    return new URL(url).origin === APP_ORIGIN;
+  } catch {
+    return false;
+  }
 }
 
 function isAllowedPermission(permission, requestingOrigin) {

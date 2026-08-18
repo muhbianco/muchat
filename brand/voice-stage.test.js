@@ -26,3 +26,8 @@ test("menu remove usuario so da call", () => {
   assert.match(js, /VoiceChannel/);
   assert.match(css, /muchat-disconnect-voice/);
 });
+
+test("getUserMedia tenta de novo sem deviceId velho", () => {
+  assert.match(js, /stripVideoDeviceId/);
+  assert.match(js, /patchGetUserMedia/);
+});
