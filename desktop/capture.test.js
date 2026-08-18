@@ -23,4 +23,13 @@ test("o pacote inclui preload e captura de tela", () => {
   assert.ok(pkg.build.files.includes("capture.js"));
   assert.ok(pkg.build.files.includes("capture-map.js"));
   assert.match(pkg.build.nsis.artifactName, /\$\{version\}/);
+  assert.equal(pkg.build.nsis.include, "installer.nsh");
+});
+
+test("pinta a janela sem GPU e mostra a versão no título", () => {
+  const main = fs.readFileSync(path.join(__dirname, "main.js"), "utf8");
+  assert.match(main, /disableHardwareAcceleration/);
+  assert.match(main, /sandbox:\s*true/);
+  assert.match(main, /Muchat \$\{version\}/);
+  assert.match(fs.readFileSync(path.join(__dirname, "installer.nsh"), "utf8"), /taskkill \/F \/IM Muchat\.exe/);
 });

@@ -1,7 +1,8 @@
 "use strict";
 
-const { app, BrowserWindow, Menu, Tray, session, shell, systemPreferences } = require("electron");
+const { app, BrowserWindow, Menu, Tray, session, shell } = require("electron");
 const path = require("path");
+const { version } = require("./package.json");
 const { setupScreenShare } = require("./capture");
 const { APP_ID, APP_ORIGIN, isAppOrigin, isAllowedPermission } = require("./permissions");
 const { shouldHideToTray } = require("./lifecycle");
@@ -9,6 +10,7 @@ const { shouldHideToTray } = require("./lifecycle");
 app.setName("Muchat");
 if (process.platform === "win32") {
   app.setAppUserModelId(APP_ID);
+  app.disableHardwareAcceleration();
 }
 app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
 
@@ -63,22 +65,30 @@ function createWindow() {
     minWidth: 800,
     minHeight: 600,
     backgroundColor: "#141210",
-    title: "Muchat",
+    title: `Muchat ${version}`,
     icon: iconPath(),
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
-      sandbox: false,
+      sandbox: true,
       backgroundThrottling: false,
     },
   });
 
   win.loadURL(`${APP_ORIGIN}/`);
 
-  win.webContents.on("render-process-gone", (_event, details) => {
-    if (win.isDestroyed() || details.reason === "clean-exit") return;
-    win.reload();
+  win.webContents.on("did-fail-load", (_event, code, desc, url, isMainFrame) => {
+    if (!isMainFrame || win.isDestroyed() || code === -3) return;
+    win.loadURL(
+      "data:text/html;charset=utf-8," +
+        encodeURIComponent(
+          `<!doctype html><title>Muchat ${version}</title>` +
+            `<body style="font-family:system-ui;background:#141210;color:#f3efe6;padding:2rem">` +
+            `<h1>Muchat ${version}</h1><p>Não carregou o chat (${code}).</p>` +
+            `<p>${desc}</p><p>${url}</p></body>`
+        )
+    );
   });
 
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -103,48 +113,14 @@ function createWindow() {
   mainWindow = win;
 }
 
-function isAppSession(wc, origin) {
-  if (!origin) return true;
-  if (isAppOrigin(origin)) return true;
-  try {
-    if (!wc || wc.isDestroyed()) return false;
-    const url = wc.getURL();
-    if (!url || url === "about:blank") return true;
-    return isAppOrigin(url);
-  } catch {
-    return true;
-  }
-}
-
 function grantAppPermissions() {
   const sess = session.defaultSession;
-  sess.setPermissionRequestHandler((wc, permission, callback, details) => {
-    const origin = details?.requestingUrl || details?.securityOrigin;
-    callback(isAppSession(wc, origin) && isAllowedPermission(permission, APP_ORIGIN));
+  sess.setPermissionRequestHandler((_wc, permission, callback, details) => {
+    callback(isAllowedPermission(permission, details?.requestingUrl || details?.securityOrigin));
   });
-  sess.setPermissionCheckHandler((wc, _permission, requestingOrigin) =>
-    isAppSession(wc, requestingOrigin)
+  sess.setPermissionCheckHandler((_wc, permission, requestingOrigin) =>
+    isAllowedPermission(permission, requestingOrigin)
   );
-  if (typeof sess.setDevicePermissionHandler === "function") {
-    sess.setDevicePermissionHandler((details) => {
-      if (!isAppOrigin(details.origin)) return false;
-      return (
-        details.deviceType === "audioinput" ||
-        details.deviceType === "audiooutput" ||
-        details.deviceType === "videoinput"
-      );
-    });
-  }
-}
-
-async function askOsMediaAccess() {
-  if (typeof systemPreferences.askForMediaAccess !== "function") return;
-  try {
-    await systemPreferences.askForMediaAccess("microphone");
-    await systemPreferences.askForMediaAccess("camera");
-  } catch {
-    /* Windows does not implement this */
-  }
 }
 
 if (!app.requestSingleInstanceLock()) {
@@ -154,9 +130,8 @@ if (!app.requestSingleInstanceLock()) {
     showMainWindow();
   });
 
-  app.whenReady().then(async () => {
+  app.whenReady().then(() => {
     grantAppPermissions();
-    await askOsMediaAccess();
     setupScreenShare(() => mainWindow);
     createTray();
     createWindow();

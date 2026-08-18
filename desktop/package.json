@@ -1,7 +1,7 @@
 {
   "name": "muchat",
   "productName": "Muchat",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "private": true,
   "description": "Muchat desktop",
   "main": "main.js",
@@ -51,6 +51,7 @@
       "createStartMenuShortcut": true,
       "shortcutName": "Muchat",
       "uninstallDisplayName": "Muchat",
+      "include": "installer.nsh",
       "artifactName": "Muchat-Setup-${version}.${ext}",
       "deleteAppDataOnUninstall": false,
       "runAfterFinish": true
