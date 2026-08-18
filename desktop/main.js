@@ -1,14 +1,59 @@
 "use strict";
 
-const { app, BrowserWindow, session, shell } = require("electron");
+const { app, BrowserWindow, Menu, Tray, session, shell } = require("electron");
 const path = require("path");
 const { APP_ID, APP_ORIGIN, isAppOrigin, isAllowedPermission } = require("./permissions");
+const { shouldHideToTray } = require("./lifecycle");
 
 app.setName("Muchat");
 if (process.platform === "win32") {
   app.setAppUserModelId(APP_ID);
 }
 app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
+
+let mainWindow = null;
+let tray = null;
+let isQuitting = false;
+
+function iconPath() {
+  return path.join(__dirname, "icon.ico");
+}
+
+function showMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    createWindow();
+    return;
+  }
+  mainWindow.setSkipTaskbar(false);
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+}
+
+function hideToTray() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  mainWindow.hide();
+  mainWindow.setSkipTaskbar(true);
+}
+
+function quitMuchat() {
+  isQuitting = true;
+  app.quit();
+}
+
+function createTray() {
+  if (tray) return;
+  tray = new Tray(iconPath());
+  tray.setToolTip("Muchat");
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      { label: "Abrir Muchat", click: showMainWindow },
+      { type: "separator" },
+      { label: "Fechar Muchat", click: quitMuchat },
+    ])
+  );
+  tray.on("click", showMainWindow);
+}
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -18,7 +63,7 @@ function createWindow() {
     minHeight: 600,
     backgroundColor: "#141210",
     title: "Muchat",
-    icon: path.join(__dirname, "icon.ico"),
+    icon: iconPath(),
     autoHideMenuBar: true,
     webPreferences: {
       contextIsolation: true,
@@ -36,6 +81,19 @@ function createWindow() {
     shell.openExternal(url);
     return { action: "deny" };
   });
+
+  win.on("close", (event) => {
+    if (shouldHideToTray(isQuitting)) {
+      event.preventDefault();
+      hideToTray();
+    }
+  });
+
+  win.on("closed", () => {
+    if (mainWindow === win) mainWindow = null;
+  });
+
+  mainWindow = win;
 }
 
 function grantAppPermissions() {
@@ -48,14 +106,28 @@ function grantAppPermissions() {
   );
 }
 
-app.whenReady().then(() => {
-  grantAppPermissions();
-  createWindow();
-  app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    showMainWindow();
   });
-});
 
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit();
-});
+  app.whenReady().then(() => {
+    grantAppPermissions();
+    createTray();
+    createWindow();
+    app.on("activate", () => {
+      showMainWindow();
+    });
+  });
+
+  app.on("before-quit", () => {
+    isQuitting = true;
+  });
+
+  app.on("window-all-closed", () => {
+    if (shouldHideToTray(isQuitting)) return;
+    if (process.platform !== "darwin") app.quit();
+  });
+}

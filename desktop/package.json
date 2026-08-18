@@ -1,13 +1,13 @@
 {
   "name": "muchat",
   "productName": "Muchat",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "description": "Muchat desktop",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "test": "node --test permissions.test.js afterPack.test.js",
+    "test": "node --test permissions.test.js afterPack.test.js lifecycle.test.js",
     "dist": "electron-builder --win nsis --x64"
   },
   "author": "Muchat",
@@ -20,7 +20,7 @@
     "appId": "br.com.muhbianco.muchat",
     "productName": "Muchat",
     "executableName": "Muchat",
-    "files": ["main.js", "permissions.js", "icon.ico", "icon.png"],
+    "files": ["main.js", "permissions.js", "lifecycle.js", "icon.ico", "icon.png"],
     "afterPack": "./afterPack.js",
     "directories": { "output": "dist" },
     "win": {
