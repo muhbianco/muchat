@@ -13,3 +13,10 @@ test("overlay de voz preenche o palco e prioriza o tile com video", () => {
   assert.match(js, /muchat-voice-stage/);
   assert.match(js, /promoteShare/);
 });
+
+test("dock de voz no rodape da lista de canais", () => {
+  assert.match(css, /#muchat-voice-dock/);
+  assert.match(js, /muchat-voice-dock/);
+  assert.match(js, /callActions/);
+  assert.match(js, /data-act="hangup"/);
+});

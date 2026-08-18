@@ -8,8 +8,8 @@ from pathlib import Path
 HEAD = """  <title>Muchat</title>
   <meta name="theme-color" content="#141210">
   <link rel="icon" href="/muchat-brand/favicon.svg">
-  <link rel="stylesheet" href="/muchat-brand/boot.css?v=3">
-  <script src="/muchat-brand/boot.js?v=3" defer></script>
+  <link rel="stylesheet" href="/muchat-brand/boot.css?v=4">
+  <script src="/muchat-brand/boot.js?v=4" defer></script>
 """
 
 
