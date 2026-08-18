@@ -30,6 +30,7 @@ DISCORD_REDIRECT_URI = os.environ.get(
     f"{PUBLIC_URL}/oauth/callback",
 )
 COOKIE_NAME = "muchat_gate"
+IN_COOKIE_NAME = "muchat_in"
 COOKIE_MAX_AGE = int(os.environ.get("COOKIE_MAX_AGE", str(7 * 24 * 3600)))
 STATE_MAX_AGE = 600
 DISCORD_API = "https://discord.com/api/v10"
@@ -264,7 +265,12 @@ def _ensure_account(discord_id: str, email: str, name: str) -> dict[str, str]:
                 json={"email": email, "password": password},
             )
             if created.status_code >= 400 and created.status_code not in {409, 403}:
-                raise RuntimeError(f"create failed: {created.status_code} {created.text[:300]}")
+                detail = created.text or ""
+                already = created.status_code == 500 and "OperationFailed" in detail
+                if not already:
+                    raise RuntimeError(
+                        f"create failed: {created.status_code} {detail[:300]}"
+                    )
             login = client.post(
                 f"{STOAT_API}/auth/session/login",
                 json={
@@ -276,13 +282,18 @@ def _ensure_account(discord_id: str, email: str, name: str) -> dict[str, str]:
         if login.status_code >= 400:
             raise RuntimeError(f"login failed: {login.status_code} {login.text[:300]}")
         body = login.json()
+        if not isinstance(body, dict):
+            raise RuntimeError("login unexpected: not an object")
+        nested = body.get("Success")
+        if isinstance(nested, dict):
+            body = nested
         if body.get("result") not in (None, "Success") and "token" not in body:
-            raise RuntimeError(f"login unexpected: {body}")
+            raise RuntimeError(f"login unexpected: {sorted(body.keys())}")
         token = str(body.get("token") or "")
-        user_id = str(body.get("user_id") or "")
-        session_id = str(body.get("_id") or "")
+        user_id = str(body.get("user_id") or body.get("userId") or "")
+        session_id = str(body.get("_id") or body.get("id") or "")
         if not token or not user_id:
-            raise RuntimeError(f"session missing fields: {body}")
+            raise RuntimeError(f"session missing fields: {sorted(body.keys())}")
 
         onboard = client.get(f"{STOAT_API}/onboard/hello", headers=_headers(token))
         needs = False
@@ -362,9 +373,6 @@ def _page(session: dict[str, str] | None, error: str | None) -> bytes:
     }} else if (!session.token) {{
       msg.textContent = "Sem sessão. Recarregue após o Discord.";
     }} else {{
-      try {{
-        localStorage.setItem("session", JSON.stringify(session));
-      }} catch (e) {{}}
       const auth = {{
         session: {{
           _id: String(session._id || session.user_id || ""),
@@ -373,6 +381,8 @@ def _page(session: dict[str, str] | None, error: str | None) -> bytes:
           valid: true,
         }},
       }};
+      const go = () => location.replace("/");
+      const raw = JSON.stringify(auth);
       const req = indexedDB.open("localforage");
       req.onupgradeneeded = () => {{
         const db = req.result;
@@ -385,18 +395,16 @@ def _page(session: dict[str, str] | None, error: str | None) -> bytes:
           const db = req.result;
           const name = db.objectStoreNames.contains("keyvaluepairs")
             ? "keyvaluepairs" : db.objectStoreNames[0];
-          if (!name) {{ location.replace("/"); return; }}
+          if (!name) {{ go(); return; }}
           const tx = db.transaction(name, "readwrite");
-          const store = tx.objectStore(name);
-          store.put(auth, "auth");
-          tx.oncomplete = () => location.replace("/");
-          tx.onerror = () => location.replace("/");
+          tx.objectStore(name).put(raw, "auth");
+          tx.oncomplete = go;
+          tx.onerror = go;
         }} catch (e) {{
-          location.replace("/");
+          go();
         }}
       }};
-      req.onerror = () => location.replace("/");
-      setTimeout(() => location.replace("/"), 1200);
+      req.onerror = go;
     }}
   </script>
 </body>
@@ -418,7 +426,13 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt: str, *args: object) -> None:
         return
 
-    def _send(self, status: int, body: bytes, extra: dict[str, str] | None = None) -> None:
+    def _send(
+        self,
+        status: int,
+        body: bytes,
+        extra: dict[str, str] | None = None,
+        cookies: list[str] | None = None,
+    ) -> None:
         self.send_response(status)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Cache-Control", "no-store")
@@ -426,6 +440,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("X-Content-Type-Options", "nosniff")
         for key, value in (extra or {}).items():
             self.send_header(key, value)
+        for cookie in cookies or []:
+            self.send_header("Set-Cookie", cookie)
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         if self.command != "HEAD":
@@ -436,6 +452,12 @@ class Handler(BaseHTTPRequestHandler):
         if extra:
             headers.update(extra)
         self._send(302, b"", extra=headers)
+
+    def _in_cookie_header(self) -> str:
+        return (
+            f"{IN_COOKIE_NAME}=1; Path=/; HttpOnly; Secure; SameSite=Lax; "
+            f"Max-Age={COOKIE_MAX_AGE}"
+        )
 
     def _set_cookie_header(self, token: str) -> str:
         return (
@@ -500,7 +522,7 @@ class Handler(BaseHTTPRequestHandler):
             print(f"sso account error: {exc}", file=sys.stderr)
             self._send(502, _page(None, "Falha ao abrir o chat. Tente de novo."))
             return
-        self._send(200, _page(session, None))
+        self._send(200, _page(session, None), cookies=[self._in_cookie_header()])
 
     def _handle_forward(self) -> None:
         identity = self._identity()

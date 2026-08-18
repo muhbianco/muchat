@@ -29,6 +29,22 @@
 		redir /sso 302
 	}
 
+	@native_signup {
+		path /api/auth/account/create
+	}
+	route @native_signup {
+		header Content-Type application/json
+		respond `{"type":"Forbidden"}` 403
+	}
+
+	@needs_sso {
+		not path /oauth* /sso* /api* /ws* /autumn* /january* /gifbox* /livekit* /ingress* /.well-known*
+		not header Cookie *muchat_in=*
+	}
+	route @needs_sso {
+		redir /sso 302
+	}
+
 	route /api* {
 		uri strip_prefix /api
 		reverse_proxy http://api:14702 {

@@ -58,9 +58,10 @@ class GateTests(unittest.TestCase):
             {"_id": "sess1", "token": "tok", "user_id": "01ABC", "name": "muchat-sso"},
             None,
         ).decode("utf-8")
-        self.assertIn('store.put(auth, "auth")', html)
+        self.assertIn("JSON.stringify(auth)", html)
         self.assertIn("userId:", html)
         self.assertIn("valid: true", html)
+        self.assertIn('.put(raw, "auth")', html)
         self.assertNotIn('store.put(session, "session")', html)
 
     def test_guild_membership(self) -> None:

@@ -50,6 +50,10 @@ text = text.replace("video_resolution = [1080, 720]", "video_resolution = [1920,
 text = text.replace("video_resolution = [1280, 720]", "video_resolution = [1920, 1080]")
 text = text.replace("attachments = 20_000_000", "attachments = 50_000_000")
 text = text.replace("body_limit_size = 20_000_000", "body_limit_size = 55_000_000")
+if "[api.registration]" not in text:
+    text += "\n[api.registration]\ninvite_only = false\n"
+if "restrict_server_creation" not in text:
+    text += "\n[features.limits.global]\nrestrict_server_creation = []\n"
 p.write_text(text, encoding="utf-8")
 
 live = Path("livekit.yml")
