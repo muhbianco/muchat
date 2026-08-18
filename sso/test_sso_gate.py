@@ -12,6 +12,7 @@ os.environ.setdefault("DISCORD_SERVER_ID", "222")
 
 from sso import (  # noqa: E402
     GateError,
+    _page,
     decode_gate_cookie,
     encode_gate_cookie,
     in_required_guild,
@@ -51,6 +52,16 @@ class GateTests(unittest.TestCase):
         state = make_oauth_state()
         with self.assertRaises(GateError):
             verify_oauth_state(state[:-2] + "ab")
+
+    def test_sso_page_writes_for_web_auth_store(self) -> None:
+        html = _page(
+            {"_id": "sess1", "token": "tok", "user_id": "01ABC", "name": "muchat-sso"},
+            None,
+        ).decode("utf-8")
+        self.assertIn('store.put(auth, "auth")', html)
+        self.assertIn("userId:", html)
+        self.assertIn("valid: true", html)
+        self.assertNotIn('store.put(session, "session")', html)
 
     def test_guild_membership(self) -> None:
         self.assertTrue(in_required_guild([{"id": "222"}, {"id": "333"}], "222"))

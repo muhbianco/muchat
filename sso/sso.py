@@ -300,7 +300,7 @@ def _ensure_account(discord_id: str, email: str, name: str) -> dict[str, str]:
                 if done.status_code < 400:
                     break
         return {
-            "_id": session_id,
+            "_id": session_id or user_id,
             "token": token,
             "user_id": user_id,
             "name": "muchat-sso",
@@ -364,15 +364,16 @@ def _page(session: dict[str, str] | None, error: str | None) -> bytes:
     }} else {{
       try {{
         localStorage.setItem("session", JSON.stringify(session));
-        const packed = {{
-          sessions: {{ [session.user_id]: session }},
-          current: session.user_id,
-          active: session.user_id,
-        }};
-        localStorage.setItem("auth", JSON.stringify(packed));
-        localStorage.setItem("state", JSON.stringify({{ auth: packed }}));
       }} catch (e) {{}}
-      const req = indexedDB.open("localforage", 2);
+      const auth = {{
+        session: {{
+          _id: String(session._id || session.user_id || ""),
+          token: String(session.token || ""),
+          userId: String(session.user_id || ""),
+          valid: true,
+        }},
+      }};
+      const req = indexedDB.open("localforage");
       req.onupgradeneeded = () => {{
         const db = req.result;
         if (!db.objectStoreNames.contains("keyvaluepairs")) {{
@@ -387,9 +388,7 @@ def _page(session: dict[str, str] | None, error: str | None) -> bytes:
           if (!name) {{ location.replace("/"); return; }}
           const tx = db.transaction(name, "readwrite");
           const store = tx.objectStore(name);
-          store.put(session, "session");
-          store.put({{ [session.user_id]: session }}, "sessions");
-          store.put(session.user_id, "current");
+          store.put(auth, "auth");
           tx.oncomplete = () => location.replace("/");
           tx.onerror = () => location.replace("/");
         }} catch (e) {{
