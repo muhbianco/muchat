@@ -35,34 +35,44 @@
     });
   }
 
-  // Stoat empacota mute/call/stream como ogg vazio (data URI). Só message_sound é arquivo de verdade.
+  // Stoat empacota mute/call/stream como ogg vazio (data URI). Só "message" é arquivo real.
+  // Proxy(Audio) não intercepta o construtor nativo no Chromium/Electron — wrapper + play().
   let pendingSound = "";
+
   const origBind = Function.prototype.bind;
   Function.prototype.bind = function bindPatched(...args) {
     const bound = origBind.apply(this, args);
-    if (!isPlaySoundFn(this)) return bound;
-    return function playSoundPatched(sound, force) {
+    if (typeof this !== "function" || this.name !== "playSound") return bound;
+    return function playSoundPatched(sound) {
       if (typeof sound === "string") pendingSound = sound;
       return bound.apply(this, arguments);
     };
   };
 
-  const NativeAudio = window.Audio;
-  window.Audio = new Proxy(NativeAudio, {
-    construct(target, args) {
-      let src = args[0];
-      if (typeof src === "string" && src.startsWith("data:audio")) {
-        src = SOUND_FILES[pendingSound] || FALLBACK_SOUND;
-        pendingSound = "";
-      }
-      return new target(src);
-    },
-  });
-
-  function isPlaySoundFn(fn) {
-    if (!fn || typeof fn !== "function") return false;
-    if (fn.name === "playSound") return true;
-    const text = Function.prototype.toString.call(fn);
-    return text.includes('case"mute"') && text.includes("new Audio");
+  function remapSoundSrc(src) {
+    if (typeof src !== "string" || !src.startsWith("data:audio")) return src;
+    const next = SOUND_FILES[pendingSound] || FALLBACK_SOUND;
+    pendingSound = "";
+    return next;
   }
+
+  const NativeAudio = window.Audio;
+  function AudioPatched(src) {
+    const node = new NativeAudio(remapSoundSrc(src));
+    return node;
+  }
+  AudioPatched.prototype = NativeAudio.prototype;
+  Object.setPrototypeOf(AudioPatched, NativeAudio);
+  window.Audio = AudioPatched;
+
+  const origPlay = HTMLMediaElement.prototype.play;
+  HTMLMediaElement.prototype.play = function playPatched() {
+    const src = this.getAttribute("src") || this.src || "";
+    const next = remapSoundSrc(src);
+    if (next !== src) {
+      this.src = next;
+      this.load();
+    }
+    return origPlay.apply(this, arguments);
+  };
 })();
