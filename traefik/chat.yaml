@@ -1,0 +1,40 @@
+# Fragmento Traefik (file provider). Merge em /root/dynamic_conf.yaml —
+# não apagar o router api.dev.
+
+http:
+  middlewares:
+    muchat-auth:
+      forwardAuth:
+        address: "http://api-agents_api_agents:8000/api/latest/auth/chat/forward"
+        trustForwardHeader: true
+        authResponseHeaders:
+          - X-Chat-Discord-Id
+          - X-Chat-Email
+          - X-Chat-Name
+    muchat-headers:
+      headers:
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        contentTypeNosniff: true
+        browserXssFilter: true
+        referrerPolicy: "no-referrer"
+        customResponseHeaders:
+          X-Robots-Tag: "noindex, nofollow"
+        permissionsPolicy: "camera=(self), microphone=(self), display-capture=(self)"
+  routers:
+    muchat:
+      rule: "Host(`chat.muhbianco.com.br`)"
+      service: muchat
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencryptresolver
+      middlewares:
+        - muchat-auth
+        - muchat-headers
+  services:
+    muchat:
+      loadBalancer:
+        servers:
+          - url: "http://caddy:80"
+        passHostHeader: true

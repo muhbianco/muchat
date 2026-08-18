@@ -1,0 +1,111 @@
+# Overlay Muchat: Traefik já ocupa 80/443. Caddy só na overlay stoat-net.
+# LiveKit publica UDP/TCP no host. Limites de CPU/RAM para não comer o resto da hel1.
+
+networks:
+  default:
+    name: stoat-net
+    external: true
+
+services:
+  caddy:
+    ports: !override []
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - sso
+      - web
+      - api
+      - events
+      - autumn
+      - january
+      - gifbox
+      - livekit
+      - voice-ingress
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+
+  sso:
+    image: muchat-sso:latest
+    build:
+      context: .
+      dockerfile: sso/Dockerfile
+    environment:
+      STOAT_API_URL: http://api:14702
+      SSO_SECRET: ${SSO_SECRET:?SSO_SECRET missing}
+    restart: always
+    depends_on:
+      - api
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+
+  livekit:
+    ports:
+      - "3478:3478/udp"
+      - "3478:3478/tcp"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.50"
+          memory: 1G
+
+  database:
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 1G
+
+  redis:
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 256M
+
+  rabbit:
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 256M
+
+  minio:
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 256M
+
+  api:
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 512M
+
+  events:
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 256M
+
+  web:
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 256M
+
+  autumn:
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 256M

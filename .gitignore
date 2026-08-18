@@ -1,0 +1,10 @@
+secrets.env
+.env
+.env.web
+data/
+vapid_private.pem
+Revolt.toml.old
+livekit.yml.old
+compose.override.yml.old
+*.pem
+.DS_Store
