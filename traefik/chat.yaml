@@ -1,19 +1,11 @@
 # Fragmento Traefik (file provider). Merge em /root/dynamic_conf.yaml —
 # não apagar o router api.dev.
 #
-# /oauth fica sem ForwardAuth (senão o Discord callback entra em loop).
-# O restante do host passa pelo SSO do Muchat — não pela api-agents.
+# Chat aberto no host. Cadastro nativo é invite-only no Stoat (Revolt.toml).
+# Sem ForwardAuth / Discord.
 
 http:
   middlewares:
-    muchat-auth:
-      forwardAuth:
-        address: "http://sso:8090/forward"
-        trustForwardHeader: true
-        authResponseHeaders:
-          - X-Chat-Discord-Id
-          - X-Chat-Email
-          - X-Chat-Name
     muchat-headers:
       headers:
         stsSeconds: 31536000
@@ -25,16 +17,6 @@ http:
           X-Robots-Tag: "noindex, nofollow"
         permissionsPolicy: "camera=(self), microphone=(self), display-capture=(self)"
   routers:
-    muchat-oauth:
-      rule: "Host(`chat.muhbianco.com.br`) && PathPrefix(`/oauth`)"
-      priority: 20
-      service: muchat
-      entryPoints:
-        - websecure
-      tls:
-        certResolver: letsencryptresolver
-      middlewares:
-        - muchat-headers
     muchat:
       rule: "Host(`chat.muhbianco.com.br`)"
       priority: 10
@@ -44,7 +26,6 @@ http:
       tls:
         certResolver: letsencryptresolver
       middlewares:
-        - muchat-auth
         - muchat-headers
   services:
     muchat:

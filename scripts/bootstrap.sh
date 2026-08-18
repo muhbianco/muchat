@@ -13,8 +13,6 @@ fi
 copy_overlay() {
   cp -a "$MUCHAT_DIR/Caddyfile" "$STOAT_DIR/Caddyfile"
   cp -a "$MUCHAT_DIR/compose.override.yml" "$STOAT_DIR/compose.override.yml"
-  rm -rf "$STOAT_DIR/sso"
-  cp -a "$MUCHAT_DIR/sso" "$STOAT_DIR/sso"
 }
 
 copy_overlay
@@ -25,22 +23,8 @@ if [[ ! -f Revolt.toml ]]; then
   copy_overlay
 fi
 
-if ! grep -q '^SSO_SECRET=' .env 2>/dev/null; then
-  printf 'SSO_SECRET=%s\n' "$(openssl rand -hex 32)" >> .env
-fi
-
-missing=0
-for key in DISCORD_CLIENT_ID DISCORD_CLIENT_SECRET DISCORD_SERVER_ID; do
-  if ! grep -q "^${key}=" .env 2>/dev/null; then
-    missing=1
-  fi
-done
-if [[ "$missing" -eq 1 ]]; then
-  echo "Preencha DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET e DISCORD_SERVER_ID em $STOAT_DIR/.env"
-  echo "Redirect no portal Discord: https://${DOMAIN}/oauth/callback"
-fi
-
 python3 - <<'PY'
+import re
 from pathlib import Path
 
 p = Path("Revolt.toml")
@@ -51,7 +35,11 @@ text = text.replace("video_resolution = [1280, 720]", "video_resolution = [1920,
 text = text.replace("attachments = 20_000_000", "attachments = 50_000_000")
 text = text.replace("body_limit_size = 20_000_000", "body_limit_size = 55_000_000")
 if "[api.registration]" not in text:
-    text += "\n[api.registration]\ninvite_only = false\n"
+    text += "\n[api.registration]\ninvite_only = true\n"
+elif re.search(r"^invite_only\s*=", text, flags=re.M):
+    text = re.sub(r"^invite_only\s*=\s*(true|false)\s*$", "invite_only = true", text, flags=re.M)
+else:
+    text = text.replace("[api.registration]", "[api.registration]\ninvite_only = true", 1)
 if "restrict_server_creation" not in text:
     text += "\n[features.limits.global]\nrestrict_server_creation = []\n"
 p.write_text(text, encoding="utf-8")
