@@ -75,4 +75,79 @@
     }
     return origPlay.apply(this, arguments);
   };
+
+  // Palco de voz: preenche a coluna central e esconde o chat de texto.
+  const VOICE_STAGE = "muchat-voice-stage";
+  let shareAutoFocused = false;
+
+  function floatingLayer() {
+    return document.querySelector("#floating > div");
+  }
+
+  function promoteShare() {
+    const videos = [
+      ...document.querySelectorAll("#floating .vc_tile video"),
+    ].filter((el) => el instanceof HTMLVideoElement && el.readyState >= 2);
+    if (!videos.length) {
+      shareAutoFocused = false;
+      return;
+    }
+    if (shareAutoFocused) return;
+    const best = videos.reduce((a, b) =>
+      b.videoWidth * b.videoHeight > a.videoWidth * a.videoHeight ? b : a
+    );
+    const tile = best.closest(".vc_tile");
+    if (!(tile instanceof HTMLElement)) return;
+    const grid = tile.parentElement;
+    if (grid && getComputedStyle(grid).flexDirection === "column") {
+      shareAutoFocused = true;
+      return;
+    }
+    tile.click();
+    shareAutoFocused = true;
+  }
+
+  function syncVoiceStage() {
+    const root = document.documentElement;
+    const layer = floatingLayer();
+    if (!layer || document.fullscreenElement) {
+      root.classList.remove(VOICE_STAGE);
+      shareAutoFocused = false;
+      return;
+    }
+    const pip = getComputedStyle(layer).getPropertyValue("--flt-w").trim();
+    const box = layer.getBoundingClientRect();
+    const docked =
+      !pip &&
+      box.width >= 400 &&
+      box.left < innerWidth - 80 &&
+      box.top < innerHeight - 120 &&
+      box.height >= 80;
+    if (!docked) {
+      root.classList.remove(VOICE_STAGE);
+      shareAutoFocused = false;
+      return;
+    }
+    root.style.setProperty(
+      "--muchat-voice-top",
+      `${Math.max(0, Math.round(box.top))}px`
+    );
+    root.classList.add(VOICE_STAGE);
+    promoteShare();
+  }
+
+  const voiceMo = new MutationObserver(() => syncVoiceStage());
+  const startVoiceStage = () => {
+    const host = document.getElementById("floating") || document.body;
+    voiceMo.observe(host, { childList: true, subtree: true });
+    window.addEventListener("resize", syncVoiceStage);
+    document.addEventListener("fullscreenchange", syncVoiceStage);
+    setInterval(syncVoiceStage, 400);
+    syncVoiceStage();
+  };
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", startVoiceStage);
+  } else {
+    startVoiceStage();
+  }
 })();
