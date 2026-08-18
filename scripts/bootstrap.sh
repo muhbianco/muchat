@@ -29,6 +29,17 @@ if ! grep -q '^SSO_SECRET=' .env 2>/dev/null; then
   printf 'SSO_SECRET=%s\n' "$(openssl rand -hex 32)" >> .env
 fi
 
+missing=0
+for key in DISCORD_CLIENT_ID DISCORD_CLIENT_SECRET DISCORD_SERVER_ID; do
+  if ! grep -q "^${key}=" .env 2>/dev/null; then
+    missing=1
+  fi
+done
+if [[ "$missing" -eq 1 ]]; then
+  echo "Preencha DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET e DISCORD_SERVER_ID em $STOAT_DIR/.env"
+  echo "Redirect no portal Discord: https://${DOMAIN}/oauth/callback"
+fi
+
 python3 - <<'PY'
 from pathlib import Path
 

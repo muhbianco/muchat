@@ -8,3 +8,5 @@ livekit.yml.old
 compose.override.yml.old
 *.pem
 .DS_Store
+__pycache__/
+*.pyc

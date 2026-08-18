@@ -35,6 +35,11 @@ services:
     environment:
       STOAT_API_URL: http://api:14702
       SSO_SECRET: ${SSO_SECRET:?SSO_SECRET missing}
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:?DISCORD_CLIENT_ID missing}
+      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:?DISCORD_CLIENT_SECRET missing}
+      DISCORD_SERVER_ID: ${DISCORD_SERVER_ID:?DISCORD_SERVER_ID missing}
+      DISCORD_REDIRECT_URI: ${DISCORD_REDIRECT_URI:-https://chat.muhbianco.com.br/oauth/callback}
+      PUBLIC_URL: ${PUBLIC_URL:-https://chat.muhbianco.com.br}
     restart: always
     depends_on:
       - api

@@ -13,6 +13,10 @@
 		}
 	}
 
+	route /oauth* {
+		reverse_proxy http://sso:8090
+	}
+
 	route /sso* {
 		reverse_proxy http://sso:8090
 	}
