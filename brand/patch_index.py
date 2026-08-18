@@ -9,7 +9,7 @@ HEAD = """  <title>Muchat</title>
   <meta name="theme-color" content="#141210">
   <link rel="icon" href="/muchat-brand/favicon.svg">
   <link rel="stylesheet" href="/muchat-brand/boot.css">
-  <script src="/muchat-brand/boot.js" defer></script>
+  <script src="/muchat-brand/boot.js?v=2" defer></script>
 """
 
 
