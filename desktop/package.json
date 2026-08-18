@@ -1,13 +1,14 @@
 {
   "name": "muchat",
   "productName": "Muchat",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Muchat desktop",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder --win portable"
+    "test": "node --test permissions.test.js afterPack.test.js",
+    "dist": "electron-builder --win nsis --x64"
   },
   "author": "Muchat",
   "license": "UNLICENSED",
@@ -18,15 +19,32 @@
   "build": {
     "appId": "br.com.muhbianco.muchat",
     "productName": "Muchat",
-    "files": ["main.js", "icon.png"],
+    "executableName": "Muchat",
+    "files": ["main.js", "permissions.js", "icon.ico", "icon.png"],
+    "afterPack": "./afterPack.js",
     "directories": { "output": "dist" },
     "win": {
-      "icon": "icon.png",
-      "target": ["portable"],
-      "signAndEditExecutable": false
+      "icon": "icon.ico",
+      "signAndEditExecutable": false,
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ]
     },
-    "portable": {
-      "artifactName": "Muchat-Setup.exe"
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Muchat",
+      "uninstallDisplayName": "Muchat",
+      "artifactName": "Muchat-Setup.exe",
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true
     }
   }
 }

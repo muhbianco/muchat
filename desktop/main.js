@@ -1,7 +1,14 @@
+"use strict";
+
 const { app, BrowserWindow, session, shell } = require("electron");
 const path = require("path");
+const { APP_ID, APP_ORIGIN, isAppOrigin, isAllowedPermission } = require("./permissions");
 
-const START = "https://chat.muhbianco.com.br/";
+app.setName("Muchat");
+if (process.platform === "win32") {
+  app.setAppUserModelId(APP_ID);
+}
+app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -11,18 +18,19 @@ function createWindow() {
     minHeight: 600,
     backgroundColor: "#141210",
     title: "Muchat",
-    icon: path.join(__dirname, "icon.png"),
+    icon: path.join(__dirname, "icon.ico"),
     autoHideMenuBar: true,
     webPreferences: {
       contextIsolation: true,
       sandbox: true,
+      backgroundThrottling: false,
     },
   });
 
-  win.loadURL(START);
+  win.loadURL(`${APP_ORIGIN}/`);
 
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith("https://chat.muhbianco.com.br/")) {
+    if (isAppOrigin(url)) {
       return { action: "allow" };
     }
     shell.openExternal(url);
@@ -30,10 +38,18 @@ function createWindow() {
   });
 }
 
-app.whenReady().then(() => {
-  session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
-    callback(["media", "notifications", "fullscreen", "clipboard-sanitized-write"].includes(permission));
+function grantAppPermissions() {
+  const sess = session.defaultSession;
+  sess.setPermissionRequestHandler((_wc, permission, callback, details) => {
+    callback(isAllowedPermission(permission, details?.requestingUrl || details?.securityOrigin));
   });
+  sess.setPermissionCheckHandler((_wc, permission, requestingOrigin) =>
+    isAllowedPermission(permission, requestingOrigin)
+  );
+}
+
+app.whenReady().then(() => {
+  grantAppPermissions();
   createWindow();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
