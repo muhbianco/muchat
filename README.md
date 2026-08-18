@@ -16,7 +16,8 @@ https://github.com/stoatchat/self-hosted na hora do bootstrap.
 ## Marca e download
 
 - PWA/título: Muchat (`brand/`).
-- Windows: `https://chat.muhbianco.com.br/download`
+- Windows: `https://chat.muhbianco.com.br/download` (`Muchat-Setup-<versão>.exe`)
+- Android: o mesmo `/download` (`Muchat-<versão>.apk`)
 
 ## Convites de conta
 

@@ -18,6 +18,8 @@
 		root * /muchat-public/download
 		@exe path *.exe
 		header @exe Content-Type application/octet-stream
+		@apk path *.apk
+		header @apk Content-Type application/vnd.android.package-archive
 		file_server
 	}
 

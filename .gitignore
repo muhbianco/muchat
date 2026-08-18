@@ -13,4 +13,11 @@ __pycache__/
 desktop/node_modules/
 desktop/dist/
 brand/public/download/*.exe
+brand/public/download/*.apk
+android/.gradle/
+android/app/build/
+android/build/
+android/release.jks
+android/keystore.properties
+android/local.properties
 
