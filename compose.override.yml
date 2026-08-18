@@ -110,7 +110,6 @@ services:
 
   web:
     volumes:
-      - ./brand/generated-index.html:/app/dist_injected/index.html:ro
       - ./brand/generated-index.html:/app/dist/index.html:ro
     deploy:
       resources:
