@@ -76,6 +76,11 @@ function createWindow() {
 
   win.loadURL(`${APP_ORIGIN}/`);
 
+  win.webContents.on("render-process-gone", (_event, details) => {
+    if (win.isDestroyed() || details.reason === "clean-exit") return;
+    win.reload();
+  });
+
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (isAppOrigin(url)) {
       return { action: "allow" };
@@ -98,21 +103,27 @@ function createWindow() {
   mainWindow = win;
 }
 
+function isAppSession(wc, origin) {
+  if (!origin) return true;
+  if (isAppOrigin(origin)) return true;
+  try {
+    if (!wc || wc.isDestroyed()) return false;
+    const url = wc.getURL();
+    if (!url || url === "about:blank") return true;
+    return isAppOrigin(url);
+  } catch {
+    return true;
+  }
+}
+
 function grantAppPermissions() {
   const sess = session.defaultSession;
-  const allow = (wc, permission, origin) => {
-    if (isAllowedPermission(permission, origin)) return true;
-    try {
-      return isAppOrigin(wc.getURL()) && isAllowedPermission(permission, APP_ORIGIN);
-    } catch {
-      return false;
-    }
-  };
   sess.setPermissionRequestHandler((wc, permission, callback, details) => {
-    callback(allow(wc, permission, details?.requestingUrl || details?.securityOrigin));
+    const origin = details?.requestingUrl || details?.securityOrigin;
+    callback(isAppSession(wc, origin) && isAllowedPermission(permission, APP_ORIGIN));
   });
-  sess.setPermissionCheckHandler((wc, permission, requestingOrigin) =>
-    allow(wc, permission, requestingOrigin)
+  sess.setPermissionCheckHandler((wc, _permission, requestingOrigin) =>
+    isAppSession(wc, requestingOrigin)
   );
   if (typeof sess.setDevicePermissionHandler === "function") {
     sess.setDevicePermissionHandler((details) => {

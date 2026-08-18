@@ -109,13 +109,12 @@
       }
     };
     devices.getUserMedia = wrapped;
-    if (MediaDevices && MediaDevices.prototype) {
-      MediaDevices.prototype.getUserMedia = function (constraints) {
-        return wrapped(constraints);
-      };
-    }
   }
-  patchGetUserMedia();
+  try {
+    patchGetUserMedia();
+  } catch {
+    /* never block the Stoat bundle */
+  }
 
   document.addEventListener(
     "contextmenu",

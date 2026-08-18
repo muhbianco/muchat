@@ -22,4 +22,5 @@ test("o pacote inclui preload e captura de tela", () => {
   assert.ok(pkg.build.files.includes("preload.js"));
   assert.ok(pkg.build.files.includes("capture.js"));
   assert.ok(pkg.build.files.includes("capture-map.js"));
+  assert.match(pkg.build.nsis.artifactName, /\$\{version\}/);
 });
