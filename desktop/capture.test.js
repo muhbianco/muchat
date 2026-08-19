@@ -32,7 +32,7 @@ test("o pacote inclui preload e captura de tela", () => {
   assert.ok(pkg.build.files.includes("update.js"));
   assert.match(pkg.build.nsis.artifactName, /\$\{version\}/);
   assert.equal(pkg.build.nsis.include, "installer.nsh");
-  assert.equal(pkg.version, "1.0.12");
+  assert.equal(pkg.version, "1.0.13");
   assert.equal(pkg.dependencies["electron-updater"], "6.6.2");
   assert.equal(pkg.build.publish.provider, "generic");
   assert.match(pkg.build.publish.url, /chat\.muhbianco\.com\.br\/download/);
@@ -61,12 +61,13 @@ test("splash na mesma janela com barra de progresso, sem tela preta ao mostrar",
   assert.match(fs.readFileSync(path.join(__dirname, "installer.nsh"), "utf8"), /taskkill \/F \/IM Muchat\.exe/);
 });
 
-test("picker de tela usa miniaturas no overlay, sem menu nativo", () => {
+test("picker de tela usa o seletor do sistema, sem menu nativo nem thumbnail que trava", () => {
   const capture = fs.readFileSync(path.join(__dirname, "capture.js"), "utf8");
   const preload = fs.readFileSync(path.join(__dirname, "preload.js"), "utf8");
-  assert.doesNotMatch(capture, /useSystemPicker:\s*true/);
+  assert.match(capture, /useSystemPicker:\s*true/);
   assert.doesNotMatch(capture, /Menu\.buildFromTemplate/);
-  assert.match(capture, /thumbnailSize:\s*\{\s*width:\s*320/);
+  assert.match(capture, /thumbnailSize:\s*\{\s*width:\s*0/);
+  assert.match(capture, /capturer-timeout/);
   assert.match(capture, /denyDisplayMedia/);
-  assert.match(preload, /onScreenPicker/);
+  assert.match(preload, /onceScreenPicker/);
 });

@@ -87,34 +87,6 @@
     return { ...constraints, video: true };
   }
 
-  function patchGetDisplayMedia() {
-    const devices = navigator.mediaDevices;
-    if (!devices || !devices.getDisplayMedia) return;
-    const orig = devices.getDisplayMedia.bind(devices);
-    devices.getDisplayMedia = (constraints) => {
-      const next = shareMediaConstraints(constraints);
-      return orig(next).catch(() => orig(constraints));
-    };
-  }
-
-  const SHARE_QUALITY = "muchat-share-quality";
-
-  function shareQuality() {
-    const q = sessionStorage.getItem(SHARE_QUALITY);
-    return q === "720" || q === "source" ? q : "1080";
-  }
-
-  function shareMediaConstraints(base) {
-    const q = shareQuality();
-    if (q === "source") return base;
-    const height = q === "720" ? 720 : 1080;
-    const video =
-      base && typeof base.video === "object" && base.video ? { ...base.video } : {};
-    video.height = { ideal: height, max: height };
-    video.frameRate = { ideal: 30, max: 30 };
-    return { ...(base && typeof base === "object" ? base : {}), video };
-  }
-
   function patchGetUserMedia() {
     const devices = navigator.mediaDevices;
     if (!devices || !devices.getUserMedia) return;
@@ -140,7 +112,6 @@
   }
   try {
     patchGetUserMedia();
-    patchGetDisplayMedia();
   } catch {
     /* never block the Stoat bundle */
   }
@@ -933,7 +904,7 @@
       );
     }
 
-    const quality = shareQuality();
+    const quality = sessionStorage.getItem("muchat-share-quality") || "1080";
     modal.innerHTML =
       '<div class="muchat-screen-picker__panel">' +
       "<h2>Compartilhar tela</h2>" +
@@ -951,7 +922,7 @@
 
     function saveQuality() {
       const sel = modal.querySelector("#muchat-share-quality");
-      if (sel) sessionStorage.setItem(SHARE_QUALITY, sel.value);
+      if (sel) sessionStorage.setItem("muchat-share-quality", sel.value);
     }
 
     pickerKeyHandler = (event) => {
@@ -983,19 +954,12 @@
   }
 
   function listenScreenPicker() {
-    if (window.native && typeof window.native.onScreenPicker === "function") {
-      window.native.onScreenPicker((sources) => {
-        showScreenPicker(sources);
-      });
-      return;
-    }
     if (!window.native || typeof window.native.onceScreenPicker !== "function") return;
     window.native.onceScreenPicker((sources) => {
       showScreenPicker(sources);
       listenScreenPicker();
     });
   }
-  listenScreenPicker();
 
   function findJoinVoiceButton() {
     for (const el of document.querySelectorAll("button, [role='button']")) {
