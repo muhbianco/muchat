@@ -1,7 +1,9 @@
 "use strict";
 
-const { desktopCapturer, ipcMain, session, Menu } = require("electron");
+const { desktopCapturer, ipcMain, session } = require("electron");
 const { mapSources } = require("./capture-map");
+
+const PICK_MS = 120000;
 
 function denyDisplayMedia(callback) {
   try {
@@ -12,69 +14,58 @@ function denyDisplayMedia(callback) {
 }
 
 function setupScreenShare(getWindow) {
-  session.defaultSession.setDisplayMediaRequestHandler(
-    (request, callback) => {
-      desktopCapturer
-        .getSources({
-          types: ["screen", "window"],
-          thumbnailSize: { width: 0, height: 0 },
-          fetchWindowIcons: true,
-        })
-        .then((sources) => {
-          if (!sources.length) {
-            denyDisplayMedia(callback);
-            return;
-          }
-          const win = getWindow();
-          if (!win || win.isDestroyed()) {
-            denyDisplayMedia(callback);
-            return;
-          }
-          let settled = false;
-          const done = (result) => {
-            if (settled) return;
-            settled = true;
-            if (result && result.video) {
-              callback(result);
-              return;
-            }
-            denyDisplayMedia(callback);
-          };
-          const pick = (idx) => {
-            if (!Number.isInteger(idx) || idx < 0 || idx >= sources.length) {
-              done({});
-              return;
-            }
-            if (request.audioRequested) {
-              done({ video: sources[idx], audio: "loopback" });
-              return;
-            }
-            done({ video: sources[idx] });
-          };
+  session.defaultSession.setDisplayMediaRequestHandler((request, callback) => {
+    desktopCapturer
+      .getSources({
+        types: ["screen", "window"],
+        thumbnailSize: { width: 320, height: 180 },
+        fetchWindowIcons: true,
+      })
+      .then((sources) => {
+        if (!sources.length) {
+          denyDisplayMedia(callback);
+          return;
+        }
+        const win = getWindow();
+        if (!win || win.isDestroyed()) {
+          denyDisplayMedia(callback);
+          return;
+        }
+        let settled = false;
+        let timer;
+        const done = (result) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
           ipcMain.removeAllListeners("screenPickerCallback");
-          ipcMain.once("screenPickerCallback", (_event, idx) => pick(idx));
-          try {
-            win.webContents.send("screenPicker", mapSources(sources));
-          } catch {
-            /* overlay is optional */
+          if (result && result.video) {
+            callback(result);
+            return;
           }
-          const template = sources.map((source, idx) => ({
-            label: String(source.name || "Fonte").slice(0, 80),
-            click: () => pick(idx),
-          }));
-          template.push({ type: "separator" });
-          template.push({ label: "Cancelar", click: () => done({}) });
-          Menu.buildFromTemplate(template).popup({
-            window: win,
-            callback: () => {
-              setTimeout(() => done({}), 50);
-            },
-          });
-        })
-        .catch(() => denyDisplayMedia(callback));
-    },
-    { useSystemPicker: true }
-  );
+          denyDisplayMedia(callback);
+        };
+        timer = setTimeout(() => done({}), PICK_MS);
+        const pick = (idx) => {
+          if (!Number.isInteger(idx) || idx < 0 || idx >= sources.length) {
+            done({});
+            return;
+          }
+          if (request.audioRequested) {
+            done({ video: sources[idx], audio: "loopback" });
+            return;
+          }
+          done({ video: sources[idx] });
+        };
+        ipcMain.removeAllListeners("screenPickerCallback");
+        ipcMain.once("screenPickerCallback", (_event, idx) => pick(idx));
+        try {
+          win.webContents.send("screenPicker", mapSources(sources));
+        } catch {
+          done({});
+        }
+      })
+      .catch(() => denyDisplayMedia(callback));
+  });
 
   ipcMain.on("minimise", () => {
     const win = getWindow();

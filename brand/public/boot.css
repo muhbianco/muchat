@@ -125,7 +125,7 @@ html.muchat-voice-stage [data-muchat-composer] {
 #muchat-screen-picker {
   position: fixed;
   inset: 0;
-  z-index: 10001;
+  z-index: 10050;
   background: rgba(20, 18, 16, 0.78);
   display: grid;
   place-items: center;
@@ -203,8 +203,33 @@ html.muchat-voice-stage [data-muchat-composer] {
   text-overflow: ellipsis;
 }
 
+.muchat-screen-picker__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.muchat-screen-picker__quality {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #8a8378;
+  font-size: 13px;
+}
+
+.muchat-screen-picker__quality select {
+  background: #141210;
+  color: #f3efe6;
+  border: 1px solid #2b2926;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font: inherit;
+}
+
 .muchat-screen-picker__cancel {
-  margin-top: 14px;
+  margin-top: 0;
   border: 0;
   background: #2b2926;
   color: #f3efe6;

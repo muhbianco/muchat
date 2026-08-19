@@ -40,6 +40,9 @@ test("splash e picker de tela no overlay", () => {
   assert.match(js, /MuchatNative/);
   assert.match(js, /muchat-screen-picker/);
   assert.match(js, /onceScreenPicker/);
+  assert.match(js, /SHARE_QUALITY/);
+  assert.match(js, /patchGetDisplayMedia/);
+  assert.match(css, /muchat-screen-picker__quality/);
   assert.match(css, /muchat-splash-bar/);
   assert.match(js, /Carregando/);
   assert.match(js, /onLoadProgress/);

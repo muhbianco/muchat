@@ -87,6 +87,34 @@
     return { ...constraints, video: true };
   }
 
+  function patchGetDisplayMedia() {
+    const devices = navigator.mediaDevices;
+    if (!devices || !devices.getDisplayMedia) return;
+    const orig = devices.getDisplayMedia.bind(devices);
+    devices.getDisplayMedia = (constraints) => {
+      const next = shareMediaConstraints(constraints);
+      return orig(next).catch(() => orig(constraints));
+    };
+  }
+
+  const SHARE_QUALITY = "muchat-share-quality";
+
+  function shareQuality() {
+    const q = sessionStorage.getItem(SHARE_QUALITY);
+    return q === "720" || q === "source" ? q : "1080";
+  }
+
+  function shareMediaConstraints(base) {
+    const q = shareQuality();
+    if (q === "source") return base;
+    const height = q === "720" ? 720 : 1080;
+    const video =
+      base && typeof base.video === "object" && base.video ? { ...base.video } : {};
+    video.height = { ideal: height, max: height };
+    video.frameRate = { ideal: 30, max: 30 };
+    return { ...(base && typeof base === "object" ? base : {}), video };
+  }
+
   function patchGetUserMedia() {
     const devices = navigator.mediaDevices;
     if (!devices || !devices.getUserMedia) return;
@@ -112,6 +140,7 @@
   }
   try {
     patchGetUserMedia();
+    patchGetDisplayMedia();
   } catch {
     /* never block the Stoat bundle */
   }
@@ -859,7 +888,13 @@
       : kick.before(item);
   }
 
+  let pickerKeyHandler = null;
+
   function closeScreenPicker() {
+    if (pickerKeyHandler) {
+      document.removeEventListener("keydown", pickerKeyHandler);
+      pickerKeyHandler = null;
+    }
     const modal = document.getElementById("muchat-screen-picker");
     if (modal) modal.remove();
   }
@@ -898,17 +933,39 @@
       );
     }
 
+    const quality = shareQuality();
     modal.innerHTML =
       '<div class="muchat-screen-picker__panel">' +
       "<h2>Compartilhar tela</h2>" +
       section("Telas", screens) +
       section("Janelas", windows) +
+      '<div class="muchat-screen-picker__foot">' +
+      '<label class="muchat-screen-picker__quality">Qualidade ' +
+      '<select id="muchat-share-quality">' +
+      `<option value="720"${quality === "720" ? " selected" : ""}>720p</option>` +
+      `<option value="1080"${quality === "1080" ? " selected" : ""}>1080p</option>` +
+      `<option value="source"${quality === "source" ? " selected" : ""}>Original</option>` +
+      "</select></label>" +
       '<button type="button" class="muchat-screen-picker__cancel">Cancelar</button>' +
-      "</div>";
+      "</div></div>";
+
+    function saveQuality() {
+      const sel = modal.querySelector("#muchat-share-quality");
+      if (sel) sessionStorage.setItem(SHARE_QUALITY, sel.value);
+    }
+
+    pickerKeyHandler = (event) => {
+      if (event.key !== "Escape") return;
+      if (window.native) window.native.screenPickerCallback(-1, false);
+      closeScreenPicker();
+    };
+    document.addEventListener("keydown", pickerKeyHandler);
+
     modal.querySelector(".muchat-screen-picker__panel").addEventListener("click", (event) => {
       const item = event.target.closest("[data-idx]");
       if (item) {
         event.preventDefault();
+        saveQuality();
         const idx = Number(item.getAttribute("data-idx"));
         if (window.native) window.native.screenPickerCallback(idx, false);
         closeScreenPicker();
@@ -920,6 +977,8 @@
         closeScreenPicker();
       }
     });
+    const sel = modal.querySelector("#muchat-share-quality");
+    if (sel) sel.addEventListener("change", saveQuality);
     document.body.appendChild(modal);
   }
 
