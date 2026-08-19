@@ -150,6 +150,60 @@
     });
   }
 
+  function notifyNativeSplashDone() {
+    try {
+      if (window.native && typeof window.native.splashReady === "function") {
+        window.native.splashReady();
+      }
+    } catch {
+      /* ignore */
+    }
+    try {
+      if (window.MuchatNative && typeof window.MuchatNative.hideSplash === "function") {
+        window.MuchatNative.hideSplash();
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  let splashHidden = false;
+  function hideSplash() {
+    if (splashHidden) return;
+    splashHidden = true;
+    const el = document.getElementById("muchat-splash");
+    if (el) el.remove();
+    notifyNativeSplashDone();
+  }
+
+  function uiLooksReady() {
+    const root = document.getElementById("root");
+    if (!root || root.childElementCount === 0) return false;
+    return root.getBoundingClientRect().height > 80;
+  }
+
+  function ensureSplash() {
+    if (document.getElementById("muchat-splash") || splashHidden) return;
+    const el = document.createElement("div");
+    el.id = "muchat-splash";
+    el.innerHTML = '<img src="/muchat-brand/icon.png" alt="Muchat" width="96" height="96">';
+    (document.body || document.documentElement).appendChild(el);
+  }
+
+  function startSplash() {
+    ensureSplash();
+    const host = document.getElementById("root") || document.body;
+    const obs = new MutationObserver(() => {
+      if (!uiLooksReady()) return;
+      obs.disconnect();
+      hideSplash();
+    });
+    if (host) obs.observe(host, { childList: true, subtree: true });
+    if (uiLooksReady()) hideSplash();
+    setTimeout(hideSplash, 12000);
+  }
+  startSplash();
+
   // Stoat empacota mute/call/stream como ogg vazio (data URI). Só "message" é arquivo real.
   // Proxy(Audio) não intercepta o construtor nativo no Chromium/Electron — wrapper + play().
   let pendingSound = "";
@@ -193,10 +247,16 @@
 
   // Palco de voz: preenche a coluna central e esconde o chat de texto.
   const VOICE_STAGE = "muchat-voice-stage";
+  const HIDE_TEXT = "muchat-hide-text";
+  const CHAT_PREF = "muchat-voice-chat";
   let shareAutoFocused = false;
 
   function floatingLayer() {
     return document.querySelector("#floating > div");
+  }
+
+  function wantsChatHidden() {
+    return sessionStorage.getItem(CHAT_PREF) !== "1";
   }
 
   function promoteShare() {
@@ -222,32 +282,67 @@
     shareAutoFocused = true;
   }
 
+  function layoutVoiceStage() {
+    const layer = floatingLayer();
+    const sidebar = findChannelSidebar();
+    if (!layer) return;
+    if (!document.documentElement.classList.contains(HIDE_TEXT)) {
+      layer.style.left = "";
+      layer.style.right = "";
+      layer.style.top = "";
+      layer.style.bottom = "";
+      return;
+    }
+    const left = sidebar ? Math.round(sidebar.getBoundingClientRect().right) : 240;
+    layer.style.left = `${left}px`;
+    layer.style.right = "0px";
+    layer.style.top = "0px";
+    layer.style.bottom = "0px";
+  }
+
+  function ensureChatToggle() {
+    let btn = document.getElementById("muchat-chat-toggle");
+    if (!btn) {
+      btn = document.createElement("button");
+      btn.type = "button";
+      btn.id = "muchat-chat-toggle";
+      btn.className = "muchat-chat-toggle material-symbols-outlined";
+      btn.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const showChat = sessionStorage.getItem(CHAT_PREF) === "1";
+        sessionStorage.setItem(CHAT_PREF, showChat ? "0" : "1");
+        syncVoiceStage();
+      });
+      document.body.appendChild(btn);
+    }
+    const hidden = wantsChatHidden();
+    btn.textContent = hidden ? "chat" : "chat_off";
+    btn.setAttribute("aria-label", hidden ? "Mostrar chat" : "Esconder chat");
+    btn.hidden = false;
+  }
+
   function syncVoiceStage() {
     const root = document.documentElement;
-    const layer = floatingLayer();
-    if (!layer || document.fullscreenElement) {
-      root.classList.remove(VOICE_STAGE);
+    const inCall = Boolean(callActions()) && !document.fullscreenElement;
+    const toggle = document.getElementById("muchat-chat-toggle");
+    if (!inCall) {
+      root.classList.remove(VOICE_STAGE, HIDE_TEXT);
       shareAutoFocused = false;
+      const layer = floatingLayer();
+      if (layer) {
+        layer.style.left = "";
+        layer.style.right = "";
+        layer.style.top = "";
+        layer.style.bottom = "";
+      }
+      if (toggle) toggle.hidden = true;
       return;
     }
-    const pip = getComputedStyle(layer).getPropertyValue("--flt-w").trim();
-    const box = layer.getBoundingClientRect();
-    const docked =
-      !pip &&
-      box.width >= 400 &&
-      box.left < innerWidth - 80 &&
-      box.top < innerHeight - 120 &&
-      box.height >= 80;
-    if (!docked) {
-      root.classList.remove(VOICE_STAGE);
-      shareAutoFocused = false;
-      return;
-    }
-    root.style.setProperty(
-      "--muchat-voice-top",
-      `${Math.max(0, Math.round(box.top))}px`
-    );
     root.classList.add(VOICE_STAGE);
+    root.classList.toggle(HIDE_TEXT, wantsChatHidden());
+    layoutVoiceStage();
+    ensureChatToggle();
     promoteShare();
   }
 
@@ -493,6 +588,134 @@
       ? kick.parentElement.insertBefore(item, kick)
       : kick.before(item);
   }
+
+  function closeScreenPicker() {
+    const modal = document.getElementById("muchat-screen-picker");
+    if (modal) modal.remove();
+  }
+
+  function showScreenPicker(sources) {
+    closeScreenPicker();
+    if (!Array.isArray(sources) || !sources.length) return;
+    const screens = sources.filter((s) => s.isFullScreen);
+    const windows = sources.filter((s) => !s.isFullScreen);
+    const modal = document.createElement("div");
+    modal.id = "muchat-screen-picker";
+    modal.addEventListener("click", (event) => {
+      if (event.target === modal) {
+        if (window.native) window.native.screenPickerCallback(-1, false);
+        closeScreenPicker();
+      }
+    });
+
+    function section(title, items) {
+      if (!items.length) return "";
+      return (
+        `<h3>${title}</h3><div class="muchat-screen-picker__grid">` +
+        items
+          .map((source) => {
+            const img = source.thumbnail || source.image;
+            const media = img
+              ? `<img src="${img}" alt="">`
+              : `<div class="muchat-screen-picker__ph">Janela</div>`;
+            const name = String(source.name || "Fonte")
+              .replace(/&/g, "&amp;")
+              .replace(/</g, "&lt;");
+            return `<button type="button" class="muchat-screen-picker__item" data-idx="${source.idx}">${media}<span>${name}</span></button>`;
+          })
+          .join("") +
+        "</div>"
+      );
+    }
+
+    modal.innerHTML =
+      '<div class="muchat-screen-picker__panel">' +
+      "<h2>Compartilhar tela</h2>" +
+      section("Telas", screens) +
+      section("Janelas", windows) +
+      '<button type="button" class="muchat-screen-picker__cancel">Cancelar</button>' +
+      "</div>";
+    modal.querySelector(".muchat-screen-picker__panel").addEventListener("click", (event) => {
+      const item = event.target.closest("[data-idx]");
+      if (item) {
+        event.preventDefault();
+        const idx = Number(item.getAttribute("data-idx"));
+        if (window.native) window.native.screenPickerCallback(idx, false);
+        closeScreenPicker();
+        return;
+      }
+      if (event.target.closest(".muchat-screen-picker__cancel")) {
+        event.preventDefault();
+        if (window.native) window.native.screenPickerCallback(-1, false);
+        closeScreenPicker();
+      }
+    });
+    document.body.appendChild(modal);
+  }
+
+  function listenScreenPicker() {
+    if (!window.native || typeof window.native.onceScreenPicker !== "function") return;
+    window.native.onceScreenPicker((sources) => {
+      showScreenPicker(sources);
+      listenScreenPicker();
+    });
+  }
+  listenScreenPicker();
+
+  function findJoinVoiceButton() {
+    for (const el of document.querySelectorAll("button, [role='button']")) {
+      const label = (el.textContent || "").replace(/\s+/g, " ").trim();
+      if (!/join the voice channel|entrar no canal de voz/i.test(label)) continue;
+      if (label.length > 64) continue;
+      const box = el.getBoundingClientRect();
+      if (box.width > 0 && box.height > 0) return el;
+    }
+    return null;
+  }
+
+  function rowLooksLikeVoice(el) {
+    if (!el || el.closest("#muchat-voice-dock, #muchat-screen-picker, #muchat-splash, #muchat-chat-toggle")) {
+      return false;
+    }
+    let hasHeadset = false;
+    let hasHash = false;
+    const nodes = el.querySelectorAll("*");
+    const cap = Math.min(nodes.length, 80);
+    for (let i = 0; i < cap; i++) {
+      const n = nodes[i];
+      if (n.childElementCount !== 0) continue;
+      const t = (n.textContent || "").trim();
+      if (t === "headset" || t === "headset_mic" || t === "volume_up") hasHeadset = true;
+      if (t === "tag" || t === "#") hasHash = true;
+    }
+    return hasHeadset && !hasHash;
+  }
+
+  document.addEventListener(
+    "click",
+    (event) => {
+      if (callActions()) return;
+      let el = event.target instanceof Element ? event.target : null;
+      let hit = false;
+      for (let i = 0; i < 10 && el; i++) {
+        if (rowLooksLikeVoice(el)) {
+          const box = el.getBoundingClientRect();
+          if (box.width > 80 && box.width < 420) {
+            hit = true;
+            break;
+          }
+        }
+        el = el.parentElement;
+      }
+      if (!hit) return;
+      window.setTimeout(() => {
+        if (callActions()) return;
+        const join = findJoinVoiceButton();
+        if (join) join.click();
+      }, 300);
+    },
+    true
+  );
 
   const voiceMo = new MutationObserver(() => syncVoiceStage());
   const startVoiceStage = () => {

@@ -43,11 +43,153 @@ html.muchat-voice-stage #floating .vc_tile:has(video) video {
   object-fit: contain !important;
 }
 
-html.muchat-voice-stage #floating .vc_tile:not(:has(video)) {
-  width: 96px !important;
-  max-width: 96px !important;
-  height: 54px !important;
-  flex: 0 0 auto;
+html.muchat-voice-stage.muchat-hide-text #floating > div {
+  position: fixed !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  height: auto !important;
+  z-index: 6;
+}
+
+#muchat-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: #141210;
+  display: grid;
+  place-items: center;
+}
+
+#muchat-splash img {
+  width: 96px;
+  height: 96px;
+  border-radius: 22px;
+}
+
+#muchat-chat-toggle {
+  position: fixed;
+  z-index: 9;
+  top: 12px;
+  right: 16px;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 10px;
+  background: #2b2926;
+  color: #f3efe6;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-family: "Material Symbols Outlined", sans-serif;
+  font-size: 22px;
+  line-height: 1;
+  font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24;
+}
+
+html.muchat-voice-stage #muchat-chat-toggle {
+  display: inline-flex;
+}
+
+#muchat-chat-toggle:hover {
+  background: #3a3732;
+}
+
+#muchat-screen-picker {
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
+  background: rgba(20, 18, 16, 0.78);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.muchat-screen-picker__panel {
+  background: #1c1a17;
+  color: #f3efe6;
+  border-radius: 12px;
+  width: min(860px, 100%);
+  max-height: 82vh;
+  overflow: auto;
+  padding: 16px 18px 18px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+}
+
+.muchat-screen-picker__panel h2 {
+  margin: 0 0 12px;
+  font-size: 1.1rem;
+}
+
+.muchat-screen-picker__panel h3 {
+  margin: 16px 0 8px;
+  font-size: 0.85rem;
+  color: #8a8378;
+  font-weight: 600;
+}
+
+.muchat-screen-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.muchat-screen-picker__item {
+  border: 0;
+  padding: 0;
+  background: #141210;
+  color: inherit;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+
+.muchat-screen-picker__item:hover {
+  outline: 2px solid #e85a2a;
+}
+
+.muchat-screen-picker__item img,
+.muchat-screen-picker__ph {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  background: #0d0c0b;
+}
+
+.muchat-screen-picker__ph {
+  display: grid;
+  place-items: center;
+  color: #8a8378;
+  font-size: 12px;
+}
+
+.muchat-screen-picker__item span {
+  display: block;
+  padding: 8px 10px 10px;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.muchat-screen-picker__cancel {
+  margin-top: 14px;
+  border: 0;
+  background: #2b2926;
+  color: #f3efe6;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.muchat-screen-picker__cancel:hover {
+  background: #3a3732;
 }
 
 #muchat-voice-dock {

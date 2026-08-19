@@ -1,33 +1,7 @@
 "use strict";
 
-const { desktopCapturer, ipcMain, session, Menu } = require("electron");
-
-function pickDesktopSource(sources, request, win, callback) {
-  let settled = false;
-  const done = (result) => {
-    if (settled) return;
-    settled = true;
-    callback(result);
-  };
-
-  const items = sources.map((source) => ({
-    label: String(source.name || "Fonte").slice(0, 80),
-    click: () => {
-      done(
-        request.audioRequested
-          ? { video: source, audio: "loopback" }
-          : { video: source }
-      );
-    },
-  }));
-  items.push({ type: "separator" });
-  items.push({ label: "Cancelar", click: () => done({}) });
-
-  const menu = Menu.buildFromTemplate(items);
-  const opts = { callback: () => done({}) };
-  if (win && !win.isDestroyed()) opts.window = win;
-  menu.popup(opts);
-}
+const { desktopCapturer, ipcMain, session } = require("electron");
+const { mapSources } = require("./capture-map");
 
 function setupScreenShare(getWindow) {
   session.defaultSession.setDisplayMediaRequestHandler(
@@ -35,7 +9,7 @@ function setupScreenShare(getWindow) {
       desktopCapturer
         .getSources({
           types: ["screen", "window"],
-          thumbnailSize: { width: 0, height: 0 },
+          thumbnailSize: { width: 320, height: 180 },
           fetchWindowIcons: true,
         })
         .then((sources) => {
@@ -43,7 +17,31 @@ function setupScreenShare(getWindow) {
             callback({});
             return;
           }
-          pickDesktopSource(sources, request, getWindow(), callback);
+          const win = getWindow();
+          if (!win || win.isDestroyed()) {
+            callback({});
+            return;
+          }
+          let settled = false;
+          const done = (result) => {
+            if (settled) return;
+            settled = true;
+            callback(result);
+          };
+          ipcMain.removeAllListeners("screenPickerCallback");
+          ipcMain.once("screenPickerCallback", (_event, idx, audio) => {
+            if (!Number.isInteger(idx) || idx < 0 || idx >= sources.length) {
+              done({});
+              return;
+            }
+            if (audio || request.audioRequested) {
+              done({ video: sources[idx], audio: "loopback" });
+              return;
+            }
+            done({ video: sources[idx] });
+          });
+          setTimeout(() => done({}), 60000);
+          win.webContents.send("screenPicker", mapSources(sources));
         })
         .catch(() => callback({}));
     },

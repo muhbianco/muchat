@@ -9,9 +9,22 @@ const js = fs.readFileSync(path.join(__dirname, "public", "boot.js"), "utf8");
 test("overlay de voz preenche o palco e prioriza o tile com video", () => {
   assert.match(css, /muchat-voice-stage/);
   assert.match(css, /100dvh - var\(--muchat-voice-top\)/);
+  assert.match(css, /muchat-hide-text/);
   assert.match(css, /\.vc_tile:has\(video\)/);
   assert.match(js, /muchat-voice-stage/);
   assert.match(js, /promoteShare/);
+  assert.match(js, /muchat-chat-toggle/);
+  assert.match(js, /CHAT_PREF/);
+});
+
+test("splash e picker de tela no overlay", () => {
+  assert.match(css, /#muchat-splash/);
+  assert.match(js, /muchat-splash/);
+  assert.match(js, /splashReady/);
+  assert.match(js, /MuchatNative/);
+  assert.match(js, /muchat-screen-picker/);
+  assert.match(js, /onceScreenPicker/);
+  assert.match(js, /join the voice channel/);
 });
 
 test("dock de voz no rodape da lista de canais", () => {

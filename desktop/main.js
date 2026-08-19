@@ -1,6 +1,6 @@
 "use strict";
 
-const { app, BrowserWindow, Menu, Tray, session, shell } = require("electron");
+const { app, BrowserWindow, Menu, Tray, session, shell, ipcMain } = require("electron");
 const path = require("path");
 const { version } = require("./package.json");
 const { setupScreenShare } = require("./capture");
@@ -15,8 +15,10 @@ if (process.platform === "win32") {
 app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
 
 let mainWindow = null;
+let splashWindow = null;
 let tray = null;
 let isQuitting = false;
+let splashClosed = false;
 
 function iconPath() {
   return path.join(__dirname, "icon.ico");
@@ -27,6 +29,7 @@ function showMainWindow() {
     createWindow();
     return;
   }
+  closeSplash();
   mainWindow.setSkipTaskbar(false);
   if (mainWindow.isMinimized()) mainWindow.restore();
   mainWindow.show();
@@ -58,6 +61,43 @@ function createTray() {
   tray.on("click", showMainWindow);
 }
 
+function closeSplash() {
+  splashClosed = true;
+  if (splashWindow && !splashWindow.isDestroyed()) {
+    splashWindow.close();
+  }
+  splashWindow = null;
+}
+
+function revealMain() {
+  closeSplash();
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.show();
+    mainWindow.focus();
+  }
+}
+
+function createSplash() {
+  splashWindow = new BrowserWindow({
+    width: 1280,
+    height: 800,
+    minWidth: 800,
+    minHeight: 600,
+    backgroundColor: "#141210",
+    title: `Muchat ${version}`,
+    icon: iconPath(),
+    autoHideMenuBar: true,
+    show: true,
+  });
+  splashWindow.loadFile(path.join(__dirname, "splash.html"));
+  splashWindow.on("closed", () => {
+    splashWindow = null;
+    if (!splashClosed && mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
+      mainWindow.show();
+    }
+  });
+}
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1280,
@@ -68,6 +108,7 @@ function createWindow() {
     title: `Muchat ${version}`,
     icon: iconPath(),
     autoHideMenuBar: true,
+    show: false,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -80,6 +121,7 @@ function createWindow() {
 
   win.webContents.on("did-fail-load", (_event, code, desc, url, isMainFrame) => {
     if (!isMainFrame || win.isDestroyed() || code === -3) return;
+    revealMain();
     win.loadURL(
       "data:text/html;charset=utf-8," +
         encodeURIComponent(
@@ -134,7 +176,10 @@ if (!app.requestSingleInstanceLock()) {
     grantAppPermissions();
     setupScreenShare(() => mainWindow);
     createTray();
+    createSplash();
     createWindow();
+    ipcMain.on("splashReady", () => revealMain());
+    setTimeout(() => revealMain(), 15000);
     app.on("activate", () => {
       showMainWindow();
     });

@@ -47,11 +47,15 @@ try {
     Pop-Location
 }
 
+$gradleFile = Join-Path $root "app\build.gradle"
+$versionMatch = Select-String -Path $gradleFile -Pattern 'versionName "([^"]+)"' | Select-Object -First 1
+$version = if ($versionMatch) { $versionMatch.Matches[0].Groups[1].Value } else { "1.0.7" }
+
 $apk = Join-Path $root "app\build\outputs\apk\release\app-release.apk"
 if (-not (Test-Path $apk)) { throw "APK nao gerado: $apk" }
 
 $download = Join-Path (Split-Path $root -Parent) "brand\public\download"
 New-Item -ItemType Directory -Force -Path $download | Out-Null
-Copy-Item -Force $apk (Join-Path $download "Muchat-1.0.6.apk")
+Copy-Item -Force $apk (Join-Path $download "Muchat-$version.apk")
 Copy-Item -Force $apk (Join-Path $download "Muchat.apk")
-Get-Item (Join-Path $download "Muchat-1.0.6.apk") | Select-Object FullName, Length
+Get-Item (Join-Path $download "Muchat-$version.apk") | Select-Object FullName, Length

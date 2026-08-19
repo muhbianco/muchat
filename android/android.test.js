@@ -20,9 +20,14 @@ test("apk empacota o chat Muchat com camera e microfone", () => {
   assert.match(manifest, /android.permission.CAMERA/);
   assert.match(manifest, /android.permission.RECORD_AUDIO/);
   assert.match(gradle, /applicationId "br.com.muhbianco.muchat"/);
-  assert.match(gradle, /versionName "1\.0\.6"/);
+  assert.match(gradle, /versionName "1\.0\.7"/);
+  assert.match(gradle, /androidx.webkit:webkit/);
+  assert.match(manifest, /FOREGROUND_SERVICE_MEDIA_PROJECTION/);
+  assert.match(manifest, /ScreenCaptureService/);
   assert.match(activity, /chat\.muhbianco\.com\.br/);
   assert.match(activity, /RESOURCE_VIDEO_CAPTURE/);
+  assert.match(activity, /MuchatNative/);
+  assert.match(activity, /hideSplash/);
   assert.equal(
     fs.existsSync(path.join(root, "app/src/main/res/mipmap-xxxhdpi/ic_launcher.png")),
     true
