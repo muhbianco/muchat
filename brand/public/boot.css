@@ -2,41 +2,27 @@ html, body {
   background: #141210 !important;
 }
 
-/* Palco full-stage: o Stoat prende o card em 40vh + transform inline. */
+/* Palco: fundo opaco cobre o chat; o card cinza e o video ficam acima. */
 html.muchat-voice-stage {
   --muchat-stage-left: 240px;
 }
 
+html.muchat-voice-stage.muchat-hide-text #floating {
+  z-index: 30 !important;
+}
+
+html.muchat-voice-stage.muchat-hide-text #floating .vc_tile,
+html.muchat-voice-stage.muchat-hide-text #floating video {
+  background: #141210 !important;
+}
+
 html.muchat-voice-stage.muchat-hide-text #floating > div {
-  position: fixed !important;
   transform: none !important;
-  top: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
-  left: var(--muchat-stage-left) !important;
-  width: auto !important;
-  height: auto !important;
-  max-width: none !important;
-  max-height: none !important;
-  z-index: 20 !important;
+  filter: none !important;
 }
 
-html.muchat-voice-stage.muchat-hide-text #floating > div > div {
-  position: absolute !important;
-  inset: 0 !important;
-  top: 0 !important;
-  height: 100% !important;
-  width: 100% !important;
-  max-width: none !important;
-  padding: 8px !important;
-  box-sizing: border-box;
-}
-
-html.muchat-voice-stage.muchat-hide-text #floating > div > div > div > div {
-  height: 100% !important;
-  width: 100% !important;
-  max-width: none !important;
-  max-height: none !important;
+html.muchat-voice-stage.muchat-hide-text [data-muchat-stage] {
+  background: #141210 !important;
 }
 
 html.muchat-voice-stage.muchat-hide-text #floating .vc_tile:has(video) {
@@ -48,7 +34,27 @@ html.muchat-voice-stage.muchat-hide-text #floating .vc_tile:has(video) {
   aspect-ratio: auto !important;
 }
 
+html.muchat-voice-stage.muchat-hide-text #floating .vc_tile:has(video) video {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain !important;
+  background: #141210 !important;
+}
+
 html.muchat-voice-stage.muchat-hide-text [data-muchat-chat] {
+  display: none !important;
+}
+
+#muchat-stage-bg {
+  position: fixed;
+  z-index: 25;
+  background: #141210;
+  pointer-events: none;
+}
+
+#muchat-stage-bg[hidden] {
   display: none !important;
 }
 
@@ -105,7 +111,7 @@ html.muchat-voice-stage.muchat-hide-text [data-muchat-chat] {
 
 #muchat-chat-toggle {
   position: fixed;
-  z-index: 40;
+  z-index: 60;
   top: 10px;
   right: 16px;
   width: auto;

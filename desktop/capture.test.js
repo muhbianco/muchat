@@ -29,9 +29,13 @@ test("o pacote inclui preload e captura de tela", () => {
   assert.ok(pkg.build.files.includes("capture.js"));
   assert.ok(pkg.build.files.includes("capture-map.js"));
   assert.ok(pkg.build.files.includes("splash.html"));
+  assert.ok(pkg.build.files.includes("update.js"));
   assert.match(pkg.build.nsis.artifactName, /\$\{version\}/);
   assert.equal(pkg.build.nsis.include, "installer.nsh");
-  assert.equal(pkg.version, "1.0.10");
+  assert.equal(pkg.version, "1.0.11");
+  assert.equal(pkg.dependencies["electron-updater"], "6.6.2");
+  assert.equal(pkg.build.publish.provider, "generic");
+  assert.match(pkg.build.publish.url, /chat\.muhbianco\.com\.br\/download/);
 });
 
 test("splash na mesma janela com barra de progresso, sem tela preta ao mostrar", () => {
@@ -47,9 +51,13 @@ test("splash na mesma janela com barra de progresso, sem tela preta ao mostrar",
   assert.match(main, /show:\s*true/);
   assert.match(main, /webContents\.invalidate/);
   assert.doesNotMatch(main, /splashWindow/);
+  assert.match(main, /maybeInstallUpdate/);
+  assert.match(main, /Verificando atualização/);
   assert.match(splash, /Carregando/);
   assert.match(splash, /muchat-load/);
+  assert.match(splash, /onLoadProgress/);
   assert.match(preload, /onLoadProgress/);
+  assert.match(preload, /payload\.label/);
   assert.match(fs.readFileSync(path.join(__dirname, "installer.nsh"), "utf8"), /taskkill \/F \/IM Muchat\.exe/);
 });
 

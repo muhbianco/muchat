@@ -32,7 +32,13 @@ contextBridge.exposeInMainWorld("native", {
   },
   splashReady: () => ipcRenderer.send("splashReady"),
   onLoadProgress: (onProgress) => {
-    ipcRenderer.on("loadProgress", (_event, pct) => onProgress(pct));
+    ipcRenderer.on("loadProgress", (_event, payload) => {
+      if (typeof payload === "number") {
+        onProgress(payload, "");
+        return;
+      }
+      onProgress(payload && payload.pct, payload && payload.label);
+    });
   },
   isWayland: () => false,
 });

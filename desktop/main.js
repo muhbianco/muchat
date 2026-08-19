@@ -4,6 +4,7 @@ const { app, BrowserWindow, Menu, Tray, session, shell, ipcMain } = require("ele
 const path = require("path");
 const { version } = require("./package.json");
 const { setupScreenShare } = require("./capture");
+const { maybeInstallUpdate } = require("./update");
 const { APP_ID, APP_ORIGIN, isAppOrigin, isAllowedPermission } = require("./permissions");
 const { shouldHideToTray } = require("./lifecycle");
 
@@ -40,12 +41,15 @@ function paintVisibleWindow(win) {
   }
 }
 
-function setLoadProgress(pct) {
+function setLoadProgress(pct, label) {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   const clamped = Math.max(0, Math.min(100, Number(pct) || 0));
   mainWindow.setProgressBar(clamped / 100);
   try {
-    mainWindow.webContents.send("loadProgress", Math.round(clamped));
+    mainWindow.webContents.send("loadProgress", {
+      pct: Math.round(clamped),
+      label: label || "",
+    });
   } catch {
     /* splash page may not have a listener yet */
   }
@@ -110,18 +114,27 @@ function createWindow() {
   });
 
   win.loadFile(path.join(__dirname, "splash.html"));
-  setLoadProgress(8);
+  setLoadProgress(8, "Carregando…");
 
   win.webContents.on("did-finish-load", () => {
     if (win.isDestroyed()) return;
     if (loadPhase === "splash") {
-      loadPhase = "chat";
-      setLoadProgress(22);
-      win.loadURL(`${APP_ORIGIN}/`);
+      loadPhase = "update";
+      setLoadProgress(12, "Verificando atualização…");
+      maybeInstallUpdate(setLoadProgress, () => {
+        isQuitting = true;
+      }).then((result) => {
+        if (win.isDestroyed() || result === "relaunch") return;
+        loadPhase = "chat";
+        setLoadProgress(30, "Carregando…");
+        win.loadURL(`${APP_ORIGIN}/`);
+      });
       return;
     }
-    setLoadProgress(80);
-    paintVisibleWindow(win);
+    if (loadPhase === "chat") {
+      setLoadProgress(80, "Carregando…");
+      paintVisibleWindow(win);
+    }
   });
 
   win.webContents.on("did-start-loading", () => {

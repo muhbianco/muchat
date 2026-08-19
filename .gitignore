@@ -14,6 +14,8 @@ desktop/node_modules/
 desktop/dist/
 brand/public/download/*.exe
 brand/public/download/*.apk
+brand/public/download/*.yml
+brand/public/download/*.blockmap
 android/.gradle/
 android/app/build/
 android/build/

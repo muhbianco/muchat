@@ -1,17 +1,20 @@
 {
   "name": "muchat",
   "productName": "Muchat",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "private": true,
   "description": "Muchat desktop",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "test": "node --test permissions.test.js afterPack.test.js lifecycle.test.js capture.test.js",
+    "test": "node --test permissions.test.js afterPack.test.js lifecycle.test.js capture.test.js update.test.js",
     "dist": "electron-builder --win nsis --x64"
   },
   "author": "Muchat",
   "license": "UNLICENSED",
+  "dependencies": {
+    "electron-updater": "6.6.2"
+  },
   "devDependencies": {
     "electron": "37.2.6",
     "electron-builder": "26.0.12"
@@ -27,11 +30,16 @@
       "capture.js",
       "capture-map.js",
       "preload.js",
+      "update.js",
       "splash.html",
       "icon.ico",
       "icon.png"
     ],
     "afterPack": "./afterPack.js",
+    "publish": {
+      "provider": "generic",
+      "url": "https://chat.muhbianco.com.br/download/"
+    },
     "directories": { "output": "dist" },
     "win": {
       "icon": "icon.ico",

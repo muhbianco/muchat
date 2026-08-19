@@ -9,9 +9,10 @@ const js = fs.readFileSync(path.join(__dirname, "public", "boot.js"), "utf8");
 test("overlay de voz preenche o palco e prioriza o tile com video", () => {
   assert.match(css, /muchat-voice-stage/);
   assert.match(css, /muchat-hide-text/);
-  assert.match(css, /transform:\s*none\s*!important/);
+  assert.match(css, /#muchat-stage-bg/);
   assert.match(css, /--muchat-stage-left/);
   assert.match(css, /\.vc_tile:has\(video\)/);
+  assert.doesNotMatch(css, /#floating > div[\s\S]{0,80}height:\s*100dvh/);
   assert.match(js, /muchat-voice-stage/);
   assert.match(js, /promoteShare/);
   assert.match(js, /muchat-chat-toggle/);
@@ -22,6 +23,12 @@ test("overlay de voz preenche o palco e prioriza o tile com video", () => {
   assert.match(js, /fillStageBox/);
   assert.match(js, /hideTextPane/);
   assert.match(js, /findGrayCard/);
+  assert.match(js, /stageFrame/);
+  assert.match(js, /findStageCard/);
+  assert.match(js, /layoutBackdrop/);
+  assert.match(js, /raiseStoatModals/);
+  assert.match(js, /10002/);
+  assert.match(js, /muchat-voice-dock/);
 });
 
 test("splash e picker de tela no overlay", () => {

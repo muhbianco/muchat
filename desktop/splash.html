@@ -37,6 +37,10 @@
       background: #e85a2a;
       animation: muchat-load 1.2s ease-in-out infinite;
     }
+    .bar.is-pct {
+      animation: none;
+      transition: width 0.25s ease;
+    }
     .label {
       margin: 0;
       color: #8a8378;
@@ -51,8 +55,22 @@
 <body>
   <div class="box">
     <img src="icon.png" alt="Muchat">
-    <div class="track" aria-hidden="true"><div class="bar"></div></div>
-    <p class="label">Carregando…</p>
+    <div class="track" aria-hidden="true"><div class="bar" id="bar"></div></div>
+    <p class="label" id="label">Carregando…</p>
   </div>
+  <script>
+    (function () {
+      const bar = document.getElementById("bar");
+      const label = document.getElementById("label");
+      if (!window.native || typeof window.native.onLoadProgress !== "function") return;
+      window.native.onLoadProgress(function (pct, text) {
+        if (bar && pct != null) {
+          bar.classList.add("is-pct");
+          bar.style.width = Math.max(8, Math.min(100, Number(pct) || 0)) + "%";
+        }
+        if (label && text) label.textContent = text;
+      });
+    })();
+  </script>
 </body>
 </html>
