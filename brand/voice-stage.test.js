@@ -47,6 +47,7 @@ test("splash e picker de tela no overlay", () => {
   assert.match(js, /listScreenSources/);
   assert.match(js, /armScreenShare/);
   assert.match(js, /patchGetDisplayMedia/);
+  assert.match(js, /orig\(\{\s*video:\s*true\s*\}\)/);
   assert.match(js, /Carregando telas/);
   assert.match(js, /data-act="share"/);
   assert.match(css, /muchat-screen-picker__status/);

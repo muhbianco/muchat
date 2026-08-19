@@ -120,11 +120,7 @@
     const devices = navigator.mediaDevices;
     if (!devices || !devices.getDisplayMedia) return;
     const orig = devices.getDisplayMedia.bind(devices);
-    devices.getDisplayMedia = (constraints) => {
-      const next = { video: true };
-      if (constraints && constraints.audio) next.audio = true;
-      return orig(next);
-    };
+    devices.getDisplayMedia = () => orig({ video: true });
   }
   try {
     patchGetDisplayMedia();

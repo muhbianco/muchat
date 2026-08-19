@@ -50,18 +50,16 @@ async function getShareSources() {
   return [...screens, ...windows];
 }
 
-function grantArmedSource(request, callback) {
-  const source = armedSource;
-  armedSource = null;
+function grantVideo(source, callback) {
   if (!source) {
     denyDisplayMedia(callback);
     return;
   }
-  if (request.audioRequested) {
-    callback({ video: source, audio: "loopback" });
-    return;
+  try {
+    callback({ video: source });
+  } catch {
+    denyDisplayMedia(callback);
   }
-  callback({ video: source });
 }
 
 function setupScreenShare(getWindow) {
@@ -83,11 +81,23 @@ function setupScreenShare(getWindow) {
 
   session.defaultSession.setDisplayMediaRequestHandler(
     (request, callback) => {
-      if (armedSource) {
-        grantArmedSource(request, callback);
+      const held = armedSource;
+      armedSource = null;
+      if (!held) {
+        denyDisplayMedia(callback);
         return;
       }
-      denyDisplayMedia(callback);
+      const types = String(held.id || "").startsWith("screen")
+        ? ["screen"]
+        : ["window"];
+      withTimeout(desktopCapturer.getSources(sourceOpts(types)), 2500, "capturer-timeout")
+        .then((sources) => {
+          grantVideo(
+            sources.find((item) => item.id === held.id) || held,
+            callback
+          );
+        })
+        .catch(() => grantVideo(held, callback));
     },
     { useSystemPicker: false }
   );

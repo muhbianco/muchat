@@ -32,7 +32,7 @@ test("o pacote inclui preload e captura de tela", () => {
   assert.ok(pkg.build.files.includes("update.js"));
   assert.match(pkg.build.nsis.artifactName, /\$\{version\}/);
   assert.equal(pkg.build.nsis.include, "installer.nsh");
-  assert.equal(pkg.version, "1.0.15");
+  assert.equal(pkg.version, "1.0.16");
   assert.equal(pkg.dependencies["electron-updater"], "6.6.2");
   assert.equal(pkg.build.publish.provider, "generic");
   assert.match(pkg.build.publish.url, /chat\.muhbianco\.com\.br\/download/);
@@ -72,8 +72,9 @@ test("picker de tela arma a fonte antes do getDisplayMedia", () => {
   assert.doesNotMatch(capture, /Menu\.buildFromTemplate/);
   assert.match(capture, /listScreenSources/);
   assert.match(capture, /armScreenShare/);
-  assert.match(capture, /armedSource/);
-  assert.match(capture, /sourceOpts\(\["screen"\]\)/);
+  assert.match(capture, /grantVideo/);
+  assert.doesNotMatch(capture, /loopback/);
+  assert.match(main, /WebRtcAllowWgcScreenCapturer/);
   assert.doesNotMatch(map, /toDataURL/);
   assert.match(preload, /listScreenSources/);
   assert.match(preload, /armScreenShare/);

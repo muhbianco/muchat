@@ -8,8 +8,8 @@ from pathlib import Path
 HEAD = """  <title>Muchat</title>
   <meta name="theme-color" content="#141210">
   <link rel="icon" href="/muchat-brand/favicon.svg">
-  <link rel="stylesheet" href="/muchat-brand/boot.css?v=20">
-  <script src="/muchat-brand/boot.js?v=20" defer></script>
+  <link rel="stylesheet" href="/muchat-brand/boot.css?v=21">
+  <script src="/muchat-brand/boot.js?v=21" defer></script>
 """
 
 
@@ -17,8 +17,8 @@ def patch(html: str) -> str:
     html = html.replace("<title>Stoat</title>", "<title>Muchat</title>")
     html = html.replace('content="#000"', 'content="#141210"')
     if "/muchat-brand/boot.js" in html:
-        html = html.replace("boot.css?v=19", "boot.css?v=20")
-        html = html.replace("boot.js?v=19", "boot.js?v=20")
+        html = html.replace("boot.css?v=20", "boot.css?v=21")
+        html = html.replace("boot.js?v=20", "boot.js?v=21")
         return html
     needle = '<script type="module"'
     if needle in html:

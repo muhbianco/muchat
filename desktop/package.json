@@ -1,7 +1,7 @@
 {
   "name": "muchat",
   "productName": "Muchat",
-  "version": "1.0.15",
+  "version": "1.0.16",
   "private": true,
   "description": "Muchat desktop",
   "main": "main.js",

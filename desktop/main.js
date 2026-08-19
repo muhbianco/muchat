@@ -12,6 +12,10 @@ app.setName("Muchat");
 if (process.platform === "win32") {
   app.setAppUserModelId(APP_ID);
   app.disableHardwareAcceleration();
+  app.commandLine.appendSwitch(
+    "disable-features",
+    "WebRtcAllowWgcScreenCapturer,WebRtcAllowWgcWindowCapturer"
+  );
 }
 app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
 
