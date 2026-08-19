@@ -42,6 +42,8 @@ test("splash e picker de tela no overlay", () => {
   assert.match(js, /native\.onScreenPicker/);
   assert.match(js, /listenScreenPicker\(\);/);
   assert.match(js, /startShareFlow/);
+  assert.match(js, /sharePassThrough && callActions/);
+  assert.match(js, /entrar no canal de voz/);
   assert.match(js, /listScreenSources/);
   assert.match(js, /armScreenShare/);
   assert.match(js, /patchGetDisplayMedia/);

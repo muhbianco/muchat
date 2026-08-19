@@ -1022,19 +1022,14 @@
     if (from.closest("#muchat-voice-dock, #muchat-screen-picker, #muchat-splash")) {
       return null;
     }
-    let el = from;
-    for (let i = 0; i < 12 && el; i++) {
-      const self = (el.textContent || "").trim();
-      if (el.childElementCount === 0 && self === "stop_screen_share") return null;
-      if (findIcon(el, "stop_screen_share")) return null;
-      if (
-        (el.childElementCount === 0 && self === "screen_share") ||
-        findIcon(el, "screen_share")
-      ) {
-        return el.closest("button, [role='button']") || el;
-      }
-      el = el.parentElement;
+    const btn = from.closest("button, [role='button']");
+    if (!btn) return null;
+    const label = (btn.textContent || "").replace(/\s+/g, " ").trim();
+    if (/join the voice channel|entrar no canal de voz|start the call|iniciar a chamada/i.test(label)) {
+      return null;
     }
+    if (findIcon(btn, "stop_screen_share")) return null;
+    if (findIcon(btn, "screen_share")) return btn;
     return null;
   }
 
@@ -1080,7 +1075,7 @@
   document.addEventListener(
     "click",
     (event) => {
-      if (!sharePassThrough) {
+      if (!sharePassThrough && callActions()) {
         const shareBtn = shareStartButton(event.target);
         if (shareBtn) {
           event.preventDefault();
