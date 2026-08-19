@@ -41,7 +41,13 @@ test("splash e picker de tela no overlay", () => {
   assert.match(js, /muchat-screen-picker/);
   assert.match(js, /native\.onScreenPicker/);
   assert.match(js, /listenScreenPicker\(\);/);
-  assert.match(css, /muchat-screen-picker__quality/);
+  assert.match(js, /startShareFlow/);
+  assert.match(js, /listScreenSources/);
+  assert.match(js, /armScreenShare/);
+  assert.match(js, /patchGetDisplayMedia/);
+  assert.match(js, /Carregando telas/);
+  assert.match(js, /data-act="share"/);
+  assert.match(css, /muchat-screen-picker__status/);
   assert.match(css, /muchat-splash-bar/);
   assert.match(js, /Carregando/);
   assert.match(js, /onLoadProgress/);
@@ -53,6 +59,7 @@ test("dock de voz no rodape da lista de canais", () => {
   assert.match(js, /muchat-voice-dock/);
   assert.match(js, /callActions/);
   assert.match(js, /data-act="hangup"/);
+  assert.match(js, /data-act="share"/);
 });
 
 test("menu remove usuario so da call", () => {

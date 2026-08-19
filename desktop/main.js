@@ -197,11 +197,16 @@ function createWindow() {
 function grantAppPermissions() {
   const sess = session.defaultSession;
   sess.setPermissionRequestHandler((_wc, permission, callback, details) => {
+    if (permission === "display-capture" || permission === "media") {
+      callback(true);
+      return;
+    }
     callback(isAllowedPermission(permission, details?.requestingUrl || details?.securityOrigin));
   });
-  sess.setPermissionCheckHandler((_wc, permission, requestingOrigin) =>
-    isAllowedPermission(permission, requestingOrigin)
-  );
+  sess.setPermissionCheckHandler((_wc, permission, requestingOrigin) => {
+    if (permission === "display-capture" || permission === "media") return true;
+    return isAllowedPermission(permission, requestingOrigin);
+  });
 }
 
 if (!app.requestSingleInstanceLock()) {

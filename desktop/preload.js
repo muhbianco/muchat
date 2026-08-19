@@ -36,6 +36,8 @@ contextBridge.exposeInMainWorld("native", {
   screenPickerCallback: (idx, audio) => {
     ipcRenderer.send("screenPickerCallback", idx, Boolean(audio));
   },
+  listScreenSources: () => ipcRenderer.invoke("listScreenSources"),
+  armScreenShare: (idx) => ipcRenderer.invoke("armScreenShare", idx),
   splashReady: () => ipcRenderer.send("splashReady"),
   onLoadProgress: (onProgress) => {
     ipcRenderer.on("loadProgress", (_event, payload) => {

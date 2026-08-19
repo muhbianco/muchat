@@ -3,6 +3,9 @@
 const { desktopCapturer, ipcMain, session } = require("electron");
 const { mapSources } = require("./capture-map");
 
+let lastSources = [];
+let armedSource = null;
+
 function denyDisplayMedia(callback) {
   try {
     callback({});
@@ -11,67 +14,80 @@ function denyDisplayMedia(callback) {
   }
 }
 
-function getShareSources() {
-  const opts = {
-    types: ["screen", "window"],
-    thumbnailSize: { width: 0, height: 0 },
-    fetchWindowIcons: false,
-  };
+function withTimeout(promise, ms, label) {
   return Promise.race([
-    desktopCapturer.getSources(opts),
+    promise,
     new Promise((_, reject) => {
-      setTimeout(() => reject(new Error("capturer-timeout")), 8000);
+      setTimeout(() => reject(new Error(label || "capturer-timeout")), ms);
     }),
   ]);
 }
 
+function sourceOpts(types) {
+  return {
+    types,
+    thumbnailSize: { width: 0, height: 0 },
+    fetchWindowIcons: false,
+  };
+}
+
+async function getShareSources() {
+  const screens = await withTimeout(
+    desktopCapturer.getSources(sourceOpts(["screen"])),
+    3000,
+    "capturer-timeout"
+  );
+  let windows = [];
+  try {
+    windows = await withTimeout(
+      desktopCapturer.getSources(sourceOpts(["window"])),
+      3000,
+      "capturer-timeout"
+    );
+  } catch {
+    windows = [];
+  }
+  return [...screens, ...windows];
+}
+
+function grantArmedSource(request, callback) {
+  const source = armedSource;
+  armedSource = null;
+  if (!source) {
+    denyDisplayMedia(callback);
+    return;
+  }
+  if (request.audioRequested) {
+    callback({ video: source, audio: "loopback" });
+    return;
+  }
+  callback({ video: source });
+}
+
 function setupScreenShare(getWindow) {
+  ipcMain.removeHandler("listScreenSources");
+  ipcMain.removeHandler("armScreenShare");
+  ipcMain.handle("listScreenSources", async () => {
+    const sources = await getShareSources();
+    lastSources = sources;
+    return mapSources(sources);
+  });
+  ipcMain.handle("armScreenShare", (_event, idx) => {
+    if (!Number.isInteger(idx) || idx < 0 || idx >= lastSources.length) {
+      armedSource = null;
+      return false;
+    }
+    armedSource = lastSources[idx];
+    return true;
+  });
+
   session.defaultSession.setDisplayMediaRequestHandler(
     (request, callback) => {
-      getShareSources()
-        .then((sources) => {
-          if (!sources.length) {
-            denyDisplayMedia(callback);
-            return;
-          }
-          const win = getWindow();
-          if (!win || win.isDestroyed()) {
-            denyDisplayMedia(callback);
-            return;
-          }
-          let settled = false;
-          const done = (result) => {
-            if (settled) return;
-            settled = true;
-            clearTimeout(watchdog);
-            ipcMain.removeAllListeners("screenPickerCallback");
-            if (result && result.video) {
-              callback(result);
-              return;
-            }
-            denyDisplayMedia(callback);
-          };
-          const watchdog = setTimeout(() => done({}), 120000);
-          const pick = (idx) => {
-            if (!Number.isInteger(idx) || idx < 0 || idx >= sources.length) {
-              done({});
-              return;
-            }
-            if (request.audioRequested) {
-              done({ video: sources[idx], audio: "loopback" });
-              return;
-            }
-            done({ video: sources[idx] });
-          };
-          ipcMain.removeAllListeners("screenPickerCallback");
-          ipcMain.once("screenPickerCallback", (_event, idx) => pick(idx));
-          try {
-            win.webContents.send("screenPicker", mapSources(sources));
-          } catch {
-            done({});
-          }
-        })
-        .catch(() => denyDisplayMedia(callback));
+      if (armedSource) {
+        grantArmedSource(request, callback);
+        return;
+      }
+      denyDisplayMedia(callback);
     },
     { useSystemPicker: false }
   );

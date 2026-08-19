@@ -239,8 +239,10 @@ html.muchat-voice-stage [data-muchat-composer] {
   font: inherit;
 }
 
-.muchat-screen-picker__cancel:hover {
-  background: #3a3732;
+.muchat-screen-picker__status {
+  margin: 8px 0 4px;
+  color: #8a8378;
+  line-height: 1.45;
 }
 
 #muchat-voice-dock {
