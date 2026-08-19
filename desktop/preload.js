@@ -31,5 +31,8 @@ contextBridge.exposeInMainWorld("native", {
     ipcRenderer.send("screenPickerCallback", idx, Boolean(audio));
   },
   splashReady: () => ipcRenderer.send("splashReady"),
+  onLoadProgress: (onProgress) => {
+    ipcRenderer.on("loadProgress", (_event, pct) => onProgress(pct));
+  },
   isWayland: () => false,
 });

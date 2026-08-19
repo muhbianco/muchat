@@ -31,7 +31,10 @@ test("splash e picker de tela no overlay", () => {
   assert.match(js, /MuchatNative/);
   assert.match(js, /muchat-screen-picker/);
   assert.match(js, /onceScreenPicker/);
-  assert.match(js, /join the voice channel/);
+  assert.match(css, /muchat-splash-bar/);
+  assert.match(js, /Carregando/);
+  assert.match(js, /onLoadProgress/);
+  assert.match(js, /startVoiceStageOnce/);
 });
 
 test("dock de voz no rodape da lista de canais", () => {

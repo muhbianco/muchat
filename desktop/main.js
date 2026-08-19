@@ -15,13 +15,45 @@ if (process.platform === "win32") {
 app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
 
 let mainWindow = null;
-let splashWindow = null;
 let tray = null;
 let isQuitting = false;
-let splashClosed = false;
+let loadPhase = "splash";
 
 function iconPath() {
   return path.join(__dirname, "icon.ico");
+}
+
+function paintVisibleWindow(win) {
+  if (!win || win.isDestroyed()) return;
+  win.setSkipTaskbar(false);
+  if (win.isMinimized()) win.restore();
+  win.show();
+  win.focus();
+  if (process.platform !== "win32") return;
+  try {
+    const [width, height] = win.getSize();
+    win.setSize(width, height + 1);
+    win.setSize(width, height);
+    win.webContents.invalidate();
+  } catch {
+    /* ignore */
+  }
+}
+
+function setLoadProgress(pct) {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  const clamped = Math.max(0, Math.min(100, Number(pct) || 0));
+  mainWindow.setProgressBar(clamped / 100);
+  try {
+    mainWindow.webContents.send("loadProgress", Math.round(clamped));
+  } catch {
+    /* splash page may not have a listener yet */
+  }
+}
+
+function clearLoadProgress() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  mainWindow.setProgressBar(-1);
 }
 
 function showMainWindow() {
@@ -29,11 +61,7 @@ function showMainWindow() {
     createWindow();
     return;
   }
-  closeSplash();
-  mainWindow.setSkipTaskbar(false);
-  if (mainWindow.isMinimized()) mainWindow.restore();
-  mainWindow.show();
-  mainWindow.focus();
+  paintVisibleWindow(mainWindow);
 }
 
 function hideToTray() {
@@ -61,44 +89,8 @@ function createTray() {
   tray.on("click", showMainWindow);
 }
 
-function closeSplash() {
-  splashClosed = true;
-  if (splashWindow && !splashWindow.isDestroyed()) {
-    splashWindow.close();
-  }
-  splashWindow = null;
-}
-
-function revealMain() {
-  closeSplash();
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.show();
-    mainWindow.focus();
-  }
-}
-
-function createSplash() {
-  splashWindow = new BrowserWindow({
-    width: 1280,
-    height: 800,
-    minWidth: 800,
-    minHeight: 600,
-    backgroundColor: "#141210",
-    title: `Muchat ${version}`,
-    icon: iconPath(),
-    autoHideMenuBar: true,
-    show: true,
-  });
-  splashWindow.loadFile(path.join(__dirname, "splash.html"));
-  splashWindow.on("closed", () => {
-    splashWindow = null;
-    if (!splashClosed && mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
-      mainWindow.show();
-    }
-  });
-}
-
 function createWindow() {
+  loadPhase = "splash";
   const win = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -108,7 +100,7 @@ function createWindow() {
     title: `Muchat ${version}`,
     icon: iconPath(),
     autoHideMenuBar: true,
-    show: false,
+    show: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -117,11 +109,34 @@ function createWindow() {
     },
   });
 
-  win.loadURL(`${APP_ORIGIN}/`);
+  win.loadFile(path.join(__dirname, "splash.html"));
+  setLoadProgress(8);
+
+  win.webContents.on("did-finish-load", () => {
+    if (win.isDestroyed()) return;
+    if (loadPhase === "splash") {
+      loadPhase = "chat";
+      setLoadProgress(22);
+      win.loadURL(`${APP_ORIGIN}/`);
+      return;
+    }
+    setLoadProgress(80);
+    paintVisibleWindow(win);
+  });
+
+  win.webContents.on("did-start-loading", () => {
+    if (loadPhase === "chat") setLoadProgress(40);
+  });
+
+  win.webContents.on("dom-ready", () => {
+    if (loadPhase === "chat") setLoadProgress(62);
+  });
 
   win.webContents.on("did-fail-load", (_event, code, desc, url, isMainFrame) => {
     if (!isMainFrame || win.isDestroyed() || code === -3) return;
-    revealMain();
+    loadPhase = "error";
+    clearLoadProgress();
+    paintVisibleWindow(win);
     win.loadURL(
       "data:text/html;charset=utf-8," +
         encodeURIComponent(
@@ -176,10 +191,12 @@ if (!app.requestSingleInstanceLock()) {
     grantAppPermissions();
     setupScreenShare(() => mainWindow);
     createTray();
-    createSplash();
     createWindow();
-    ipcMain.on("splashReady", () => revealMain());
-    setTimeout(() => revealMain(), 15000);
+    ipcMain.on("splashReady", () => {
+      setLoadProgress(100);
+      clearLoadProgress();
+      paintVisibleWindow(mainWindow);
+    });
     app.on("activate", () => {
       showMainWindow();
     });

@@ -31,16 +31,25 @@ test("o pacote inclui preload e captura de tela", () => {
   assert.ok(pkg.build.files.includes("splash.html"));
   assert.match(pkg.build.nsis.artifactName, /\$\{version\}/);
   assert.equal(pkg.build.nsis.include, "installer.nsh");
-  assert.equal(pkg.version, "1.0.9");
+  assert.equal(pkg.version, "1.0.10");
 });
 
-test("pinta a janela sem GPU e mostra a versão no título", () => {
+test("splash na mesma janela com barra de progresso, sem tela preta ao mostrar", () => {
   const main = fs.readFileSync(path.join(__dirname, "main.js"), "utf8");
+  const splash = fs.readFileSync(path.join(__dirname, "splash.html"), "utf8");
+  const preload = fs.readFileSync(path.join(__dirname, "preload.js"), "utf8");
   assert.match(main, /disableHardwareAcceleration/);
   assert.match(main, /sandbox:\s*true/);
   assert.match(main, /Muchat \$\{version\}/);
   assert.match(main, /splashReady/);
   assert.match(main, /splash.html/);
+  assert.match(main, /setProgressBar/);
+  assert.match(main, /show:\s*true/);
+  assert.match(main, /webContents\.invalidate/);
+  assert.doesNotMatch(main, /splashWindow/);
+  assert.match(splash, /Carregando/);
+  assert.match(splash, /muchat-load/);
+  assert.match(preload, /onLoadProgress/);
   assert.match(fs.readFileSync(path.join(__dirname, "installer.nsh"), "utf8"), /taskkill \/F \/IM Muchat\.exe/);
 });
 

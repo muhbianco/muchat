@@ -168,26 +168,49 @@
   }
 
   let splashHidden = false;
-  function hideSplash() {
-    if (splashHidden) return;
-    splashHidden = true;
-    const el = document.getElementById("muchat-splash");
-    if (el) el.remove();
-    notifyNativeSplashDone();
-  }
-
   function uiLooksReady() {
     const root = document.getElementById("root");
     if (!root || root.childElementCount === 0) return false;
-    return root.getBoundingClientRect().height > 80;
+    if (root.getBoundingClientRect().height < 80) return false;
+    const text = (root.innerText || "").replace(/\s+/g, " ").trim();
+    if (text.length >= 24) return true;
+    return Boolean(root.querySelector("input, button, textarea, canvas, img"));
+  }
+
+  function setSplashProgress(pct) {
+    const bar = document.getElementById("muchat-splash-bar");
+    if (!bar) return;
+    const n = Math.max(8, Math.min(100, Number(pct) || 0));
+    bar.classList.remove("is-indeterminate");
+    bar.style.width = `${n}%`;
   }
 
   function ensureSplash() {
     if (document.getElementById("muchat-splash") || splashHidden) return;
     const el = document.createElement("div");
     el.id = "muchat-splash";
-    el.innerHTML = '<img src="/muchat-brand/icon.png" alt="Muchat" width="96" height="96">';
+    el.innerHTML =
+      '<img src="/muchat-brand/icon.png" alt="Muchat" width="96" height="96">' +
+      '<div class="muchat-splash-track"><div class="muchat-splash-bar is-indeterminate" id="muchat-splash-bar"></div></div>' +
+      '<p class="muchat-splash-label">Carregando…</p>';
     (document.body || document.documentElement).appendChild(el);
+    try {
+      if (window.native && typeof window.native.onLoadProgress === "function") {
+        window.native.onLoadProgress(setSplashProgress);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  let voiceStageStarted = false;
+  function hideSplash() {
+    if (splashHidden) return;
+    splashHidden = true;
+    const el = document.getElementById("muchat-splash");
+    if (el) el.remove();
+    notifyNativeSplashDone();
+    startVoiceStageOnce();
   }
 
   function startSplash() {
@@ -875,24 +898,26 @@
     true
   );
 
-  const voiceMo = new MutationObserver(() => syncVoiceStage());
-  const startVoiceStage = () => {
-    const host = document.getElementById("floating") || document.body;
-    voiceMo.observe(host, { childList: true, subtree: true });
+  function startVoiceStageOnce() {
+    if (voiceStageStarted) return;
+    voiceStageStarted = true;
     window.addEventListener("resize", syncVoiceStage);
     document.addEventListener("fullscreenchange", syncVoiceStage);
     setInterval(() => {
+      try {
+        syncVoiceStage();
+        syncVoiceDock();
+        syncDisconnectItem();
+      } catch {
+        /* never block the chat */
+      }
+    }, 400);
+    try {
       syncVoiceStage();
       syncVoiceDock();
       syncDisconnectItem();
-    }, 400);
-    syncVoiceStage();
-    syncVoiceDock();
-    syncDisconnectItem();
-  };
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", startVoiceStage);
-  } else {
-    startVoiceStage();
+    } catch {
+      /* ignore */
+    }
   }
 })();
