@@ -6,26 +6,24 @@ const path = require("path");
 const css = fs.readFileSync(path.join(__dirname, "public", "boot.css"), "utf8");
 const js = fs.readFileSync(path.join(__dirname, "public", "boot.js"), "utf8");
 
-test("overlay de voz preenche o palco e prioriza o tile com video", () => {
+test("overlay de voz deixa a box cinza redimensionavel", () => {
   assert.match(css, /muchat-voice-stage/);
-  assert.match(css, /muchat-hide-text/);
-  assert.match(css, /#muchat-stage-bg/);
-  assert.match(css, /--muchat-stage-left/);
+  assert.match(css, /#muchat-stage-handle/);
+  assert.match(css, /cursor:\s*ns-resize/);
   assert.match(css, /\.vc_tile:has\(video\)/);
-  assert.doesNotMatch(css, /#floating > div[\s\S]{0,80}height:\s*100dvh/);
+  assert.doesNotMatch(css, /muchat-hide-text/);
+  assert.doesNotMatch(css, /#muchat-chat-toggle/);
+  assert.doesNotMatch(js, /Esconder chat/);
+  assert.doesNotMatch(js, /hideTextPane/);
   assert.match(js, /muchat-voice-stage/);
   assert.match(js, /promoteShare/);
-  assert.match(js, /muchat-chat-toggle/);
-  assert.match(js, /Mostrar chat/);
-  assert.match(js, /Esconder chat/);
-  assert.match(js, /CHAT_PREF/);
   assert.match(js, /data-muchat-stage/);
-  assert.match(js, /fillStageBox/);
-  assert.match(js, /hideTextPane/);
+  assert.match(js, /data-muchat-mount/);
   assert.match(js, /findGrayCard/);
-  assert.match(js, /stageFrame/);
   assert.match(js, /findStageCard/);
-  assert.match(js, /layoutBackdrop/);
+  assert.match(js, /applyStageHeight/);
+  assert.match(js, /placeStageHandle/);
+  assert.match(js, /STAGE_H_PREF/);
   assert.match(js, /raiseStoatModals/);
   assert.match(js, /10002/);
   assert.match(js, /muchat-voice-dock/);

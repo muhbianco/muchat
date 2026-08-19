@@ -271,19 +271,14 @@
     return origPlay.apply(this, arguments);
   };
 
-  // Palco de voz: preenche a coluna central e esconde o chat de texto.
+  // Palco de voz: a box cinza estica pela borda de baixo; o chat fica embaixo.
   const VOICE_STAGE = "muchat-voice-stage";
-  const HIDE_TEXT = "muchat-hide-text";
-  const CHAT_PREF = "muchat-voice-chat";
+  const STAGE_H_PREF = "muchat-voice-h";
+  const STAGE_MIN = 160;
   let shareAutoFocused = false;
-
-  function floatingLayer() {
-    return document.querySelector("#floating > div");
-  }
-
-  function wantsChatHidden() {
-    return sessionStorage.getItem(CHAT_PREF) !== "1";
-  }
+  let stageDragging = false;
+  let stageDragStartY = 0;
+  let stageDragStartH = 0;
 
   function promoteShare() {
     const videos = [
@@ -361,57 +356,81 @@
     return null;
   }
 
-  function stageFrame(el, left, zIndex) {
-    if (!(el instanceof HTMLElement)) return;
-    el.setAttribute("data-muchat-stage", "1");
-    important(el, "position", "fixed");
-    important(el, "transform", "none");
-    important(el, "filter", "none");
-    important(el, "will-change", "auto");
-    important(el, "top", "0px");
-    important(el, "right", "0px");
-    important(el, "bottom", "0px");
-    important(el, "left", `${left}px`);
-    important(el, "width", "auto");
-    important(el, "height", "100dvh");
-    important(el, "max-width", "none");
-    important(el, "max-height", "none");
-    important(el, "z-index", zIndex);
-    important(el, "border-radius", "0px");
-    important(el, "overflow", "hidden");
+  function stageMaxHeight() {
+    return Math.max(STAGE_MIN + 40, innerHeight - 72);
   }
 
-  function fillStageBox(el, left) {
-    stageFrame(el, left, "28");
-    important(el, "background", "#141210");
-    important(el, "display", "flex");
-    important(el, "flex-direction", "column");
-    for (const child of el.children) {
-      if (child.id === "muchat-chat-toggle") continue;
-      important(child, "flex", "1");
-      important(child, "min-height", "0");
-      important(child, "width", "100%");
-      important(child, "max-height", "none");
+  function clampStageHeight(px) {
+    return Math.min(stageMaxHeight(), Math.max(STAGE_MIN, Math.round(Number(px) || 0)));
+  }
+
+  function readStageHeight() {
+    const saved = Number(sessionStorage.getItem(STAGE_H_PREF));
+    if (!Number.isFinite(saved) || saved < STAGE_MIN) return 0;
+    return clampStageHeight(saved);
+  }
+
+  function fillCardColumn(card) {
+    important(card, "display", "flex");
+    important(card, "flex-direction", "column");
+    for (const child of card.children) {
+      if (!(child instanceof HTMLElement) || child.id === "muchat-stage-handle") continue;
+      const text = child.textContent || "";
+      const looksActions =
+        text.includes("call_end") && child.getBoundingClientRect().height < 90;
+      if (looksActions) {
+        important(child, "flex", "0 0 auto");
+        continue;
+      }
+      if (child.querySelector(".vc_tile, video")) {
+        important(child, "flex", "1 1 auto");
+        important(child, "min-height", "0");
+        important(child, "max-height", "none");
+        important(child, "height", "auto");
+        important(child, "width", "100%");
+      }
     }
   }
 
-  function layoutBackdrop(left) {
-    let bg = document.getElementById("muchat-stage-bg");
-    if (!bg) {
-      bg = document.createElement("div");
-      bg.id = "muchat-stage-bg";
-      document.body.appendChild(bg);
+  function findVoiceMount(card) {
+    const marked = document.querySelector("[data-muchat-mount]");
+    if (marked && document.body.contains(marked)) return marked;
+    const want = card.getBoundingClientRect();
+    const root = document.getElementById("root");
+    if (!root) return null;
+    let best = null;
+    let bestH = 0;
+    for (const el of root.querySelectorAll("div")) {
+      if (el === card || el.closest("#floating, #muchat-voice-dock, #muchat-stage-handle")) {
+        continue;
+      }
+      const box = el.getBoundingClientRect();
+      if (Math.abs(box.left - want.left) > 28) continue;
+      if (Math.abs(box.width - want.width) > 28) continue;
+      if (Math.abs(box.top - want.top) > 28) continue;
+      if (box.height < 140 || box.height > innerHeight * 0.82) continue;
+      if (box.height >= bestH) {
+        bestH = box.height;
+        best = el;
+      }
     }
-    bg.hidden = false;
-    important(bg, "left", `${left}px`);
-    important(bg, "top", "0px");
-    important(bg, "right", "0px");
-    important(bg, "bottom", "0px");
+    return best;
   }
 
-  function hideBackdrop() {
-    const bg = document.getElementById("muchat-stage-bg");
-    if (bg) bg.hidden = true;
+  function applyStageHeight(card, height) {
+    card.setAttribute("data-muchat-stage", "1");
+    important(card, "height", `${height}px`);
+    important(card, "min-height", `${height}px`);
+    important(card, "max-height", `${height}px`);
+    important(card, "overflow", "hidden");
+    fillCardColumn(card);
+    const mount = findVoiceMount(card);
+    if (mount && mount !== card) {
+      mount.setAttribute("data-muchat-mount", "1");
+      important(mount, "height", `${height}px`);
+      important(mount, "min-height", `${height}px`);
+      important(mount, "max-height", `${height}px`);
+    }
   }
 
   function raiseStoatModals() {
@@ -433,174 +452,108 @@
   }
 
   function restoreStageBoxes() {
-    for (const el of document.querySelectorAll("[data-muchat-stage]")) {
+    document.documentElement.classList.remove("muchat-stage-dragging");
+    stageDragging = false;
+    for (const el of document.querySelectorAll("[data-muchat-stage], [data-muchat-mount]")) {
       for (const prop of [
-        "position",
-        "transform",
-        "top",
-        "right",
-        "bottom",
-        "left",
-        "width",
         "height",
-        "max-width",
         "max-height",
-        "z-index",
-        "border-radius",
+        "min-height",
         "overflow",
         "display",
-        "background",
         "flex",
         "flex-direction",
-        "min-height",
-        "filter",
-        "will-change",
       ]) {
         el.style.removeProperty(prop);
       }
       for (const child of el.children) {
-        if (child.id === "muchat-chat-toggle") continue;
         child.style.removeProperty("flex");
         child.style.removeProperty("min-height");
         child.style.removeProperty("width");
         child.style.removeProperty("max-height");
+        child.style.removeProperty("height");
       }
       el.removeAttribute("data-muchat-stage");
+      el.removeAttribute("data-muchat-mount");
     }
-    for (const el of document.querySelectorAll("[data-muchat-chat]")) {
-      el.style.removeProperty("display");
-      el.removeAttribute("data-muchat-chat");
-    }
-    hideBackdrop();
+    const handle = document.getElementById("muchat-stage-handle");
+    if (handle) handle.hidden = true;
   }
 
-  function findComposerHost() {
-    const root = document.getElementById("root");
-    if (!root) return null;
-    for (const el of root.querySelectorAll("textarea, input, [contenteditable='true']")) {
-      const ph = el.getAttribute("placeholder") || el.getAttribute("aria-label") || "";
-      if (/message/i.test(ph)) return el;
+  function placeStageHandle(card) {
+    let handle = document.getElementById("muchat-stage-handle");
+    if (!handle) {
+      handle = document.createElement("div");
+      handle.id = "muchat-stage-handle";
+      handle.title = "Arraste para redimensionar";
+      handle.addEventListener("pointerdown", onStageHandleDown);
+      handle.addEventListener("pointermove", onStageHandleMove);
+      handle.addEventListener("pointerup", onStageHandleUp);
+      handle.addEventListener("pointercancel", onStageHandleUp);
+      document.body.appendChild(handle);
     }
-    for (const el of root.querySelectorAll("*")) {
-      if (el.childElementCount !== 0) continue;
-      const t = (el.textContent || "").trim();
-      if (/^Message\s+\S/i.test(t) && t.length < 80) return el;
-    }
-    return null;
+    const box = card.getBoundingClientRect();
+    handle.hidden = false;
+    important(handle, "left", `${Math.round(box.left)}px`);
+    important(handle, "width", `${Math.round(box.width)}px`);
+    important(handle, "top", `${Math.round(box.bottom - 6)}px`);
   }
 
-  function hideTextPane(card) {
-    const cardBox = (card || floatingLayer() || document.body).getBoundingClientRect();
-    const host = findComposerHost();
-    let target = null;
-    if (host) {
-      let el = host;
-      while (el && el.id !== "root") {
-        const parent = el.parentElement;
-        if (!parent || parent.id === "root") {
-          target = el;
-          break;
-        }
-        const pbox = parent.getBoundingClientRect();
-        if (pbox.top < cardBox.bottom - 48) {
-          target = el;
-          break;
-        }
-        el = parent;
-      }
-    }
-    if (!target) {
-      let best = null;
-      let bestArea = 0;
-      const root = document.getElementById("root");
-      if (root) {
-        for (const el of root.querySelectorAll("div")) {
-          if (el.closest("#floating, #muchat-voice-dock, #muchat-chat-toggle")) continue;
-          const box = el.getBoundingClientRect();
-          if (box.top < cardBox.bottom - 16) continue;
-          if (Math.abs(box.left - cardBox.left) > 90) continue;
-          if (box.width < 240 || box.height < 100) continue;
-          const area = box.width * box.height;
-          if (area > bestArea) {
-            bestArea = area;
-            best = el;
-          }
-        }
-      }
-      target = best;
-    }
-    if (!(target instanceof HTMLElement)) return;
-    target.setAttribute("data-muchat-chat", "1");
-    important(target, "display", "none");
+  function onStageHandleDown(event) {
+    if (event.button != null && event.button !== 0) return;
+    const card = findStageCard();
+    if (!card) return;
+    event.preventDefault();
+    event.stopPropagation();
+    stageDragging = true;
+    stageDragStartY = event.clientY;
+    stageDragStartH = card.getBoundingClientRect().height;
+    document.documentElement.classList.add("muchat-stage-dragging");
+    event.currentTarget.setPointerCapture(event.pointerId);
   }
 
-  function toggleVoiceChatPref() {
-    const showChat = sessionStorage.getItem(CHAT_PREF) === "1";
-    sessionStorage.setItem(CHAT_PREF, showChat ? "0" : "1");
-    syncVoiceStage();
+  function onStageHandleMove(event) {
+    if (!stageDragging) return;
+    const next = clampStageHeight(stageDragStartH + (event.clientY - stageDragStartY));
+    sessionStorage.setItem(STAGE_H_PREF, String(next));
+    layoutVoiceStage();
+  }
+
+  function onStageHandleUp(event) {
+    if (!stageDragging) return;
+    stageDragging = false;
+    document.documentElement.classList.remove("muchat-stage-dragging");
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      /* already released */
+    }
   }
 
   function layoutVoiceStage() {
-    const sidebar = findChannelSidebar();
-    const left = sidebar ? Math.round(sidebar.getBoundingClientRect().right) : 240;
-    document.documentElement.style.setProperty("--muchat-stage-left", `${left}px`);
-    if (!document.documentElement.classList.contains(HIDE_TEXT)) {
-      restoreStageBoxes();
+    const card = findStageCard();
+    if (!card) {
+      const handle = document.getElementById("muchat-stage-handle");
+      if (handle) handle.hidden = true;
       return;
     }
-    const layer = floatingLayer();
-    if (layer) stageFrame(layer, left, "26");
-    const card = findStageCard();
-    if (card && card !== layer) fillStageBox(card, left);
-    layoutBackdrop(left);
-    hideTextPane(card);
+    const saved = readStageHeight();
+    if (saved) applyStageHeight(card, saved);
+    else fillCardColumn(card);
+    placeStageHandle(card);
     raiseStoatModals();
-  }
-
-  function ensureChatToggle() {
-    let btn = document.getElementById("muchat-chat-toggle");
-    if (!btn) {
-      btn = document.createElement("button");
-      btn.type = "button";
-      btn.id = "muchat-chat-toggle";
-      btn.addEventListener("click", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        toggleVoiceChatPref();
-      });
-    }
-    const hidden = wantsChatHidden();
-    btn.textContent = hidden ? "Mostrar chat" : "Esconder chat";
-    btn.setAttribute("aria-label", btn.textContent);
-    btn.hidden = false;
-    if (btn.parentElement !== document.body) document.body.appendChild(btn);
-    important(btn, "position", "fixed");
-    important(btn, "top", "10px");
-    important(btn, "right", "16px");
-    important(btn, "left", "auto");
-    important(btn, "z-index", "60");
   }
 
   function syncVoiceStage() {
     const root = document.documentElement;
-    const inCall = inVoiceCall();
-    const toggle = document.getElementById("muchat-chat-toggle");
-    if (!inCall) {
-      root.classList.remove(VOICE_STAGE, HIDE_TEXT);
+    if (!inVoiceCall()) {
+      root.classList.remove(VOICE_STAGE);
       shareAutoFocused = false;
       restoreStageBoxes();
-      if (toggle) {
-        toggle.hidden = true;
-        if (toggle.parentElement && toggle.parentElement !== document.body) {
-          document.body.appendChild(toggle);
-        }
-      }
       return;
     }
     root.classList.add(VOICE_STAGE);
-    root.classList.toggle(HIDE_TEXT, wantsChatHidden());
     layoutVoiceStage();
-    ensureChatToggle();
     promoteShare();
   }
 
@@ -684,17 +637,12 @@
       '<div class="muchat-voice-dock__actions">' +
       '<button type="button" class="muchat-voice-dock__btn material-symbols-outlined" data-act="mute" aria-label="Microfone">mic</button>' +
       '<button type="button" class="muchat-voice-dock__btn material-symbols-outlined" data-act="deafen" aria-label="Áudio">headset</button>' +
-      '<button type="button" class="muchat-voice-dock__btn is-chat" data-act="chat" aria-label="Chat">Chat</button>' +
       "</div>";
     dock.addEventListener("click", (event) => {
       const btn = event.target.closest("[data-act]");
       if (!btn) return;
       event.preventDefault();
       event.stopPropagation();
-      if (btn.getAttribute("data-act") === "chat") {
-        toggleVoiceChatPref();
-        return;
-      }
       const actions = callActions();
       if (!actions) return;
       if (btn.getAttribute("data-act") === "mute") press(actions.mute && actions.mute.btn);
@@ -702,7 +650,6 @@
         press(actions.deafen && actions.deafen.btn);
       }
       if (btn.getAttribute("data-act") === "hangup") press(actions.hangup);
-      if (btn.getAttribute("data-act") === "chat") toggleVoiceChatPref();
     });
     document.body.appendChild(dock);
     return dock;
@@ -726,7 +673,6 @@
     }
     const muteBtn = dock.querySelector('[data-act="mute"]');
     const deafenBtn = dock.querySelector('[data-act="deafen"]');
-    const chatBtn = dock.querySelector('[data-act="chat"]');
     muteBtn.textContent = actions.muted ? "mic_off" : "mic";
     muteBtn.classList.toggle("is-off", actions.muted);
     muteBtn.setAttribute("aria-label", actions.muted ? "Ativar microfone" : "Silenciar microfone");
@@ -736,11 +682,6 @@
       "aria-label",
       actions.deafened ? "Ativar áudio" : "Ensurdecer"
     );
-    if (chatBtn) {
-      const hidden = wantsChatHidden();
-      chatBtn.textContent = hidden ? "Chat" : "Texto";
-      chatBtn.setAttribute("aria-label", hidden ? "Mostrar chat" : "Esconder chat");
-    }
     dock.hidden = false;
     const box = sidebar.getBoundingClientRect();
     dock.style.left = `${Math.round(box.left)}px`;
@@ -950,7 +891,7 @@
   }
 
   function rowLooksLikeVoice(el) {
-    if (!el || el.closest("#muchat-voice-dock, #muchat-screen-picker, #muchat-splash, #muchat-chat-toggle")) {
+    if (!el || el.closest("#muchat-voice-dock, #muchat-screen-picker, #muchat-splash, #muchat-stage-handle")) {
       return false;
     }
     let hasHeadset = false;

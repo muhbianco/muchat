@@ -2,39 +2,25 @@ html, body {
   background: #141210 !important;
 }
 
-/* Palco: fundo opaco cobre o chat; o card cinza e o video ficam acima. */
-html.muchat-voice-stage {
-  --muchat-stage-left: 240px;
-}
-
-html.muchat-voice-stage.muchat-hide-text #floating {
-  z-index: 30 !important;
-}
-
-html.muchat-voice-stage.muchat-hide-text #floating .vc_tile,
-html.muchat-voice-stage.muchat-hide-text #floating video {
+html.muchat-voice-stage [data-muchat-stage] .vc_tile,
+html.muchat-voice-stage [data-muchat-stage] video,
+html.muchat-voice-stage #floating .vc_tile,
+html.muchat-voice-stage #floating video {
   background: #141210 !important;
 }
 
-html.muchat-voice-stage.muchat-hide-text #floating > div {
-  transform: none !important;
-  filter: none !important;
-}
-
-html.muchat-voice-stage.muchat-hide-text [data-muchat-stage] {
-  background: #141210 !important;
-}
-
-html.muchat-voice-stage.muchat-hide-text #floating .vc_tile:has(video) {
+html.muchat-voice-stage [data-muchat-stage] .vc_tile:has(video),
+html.muchat-voice-stage #floating .vc_tile:has(video) {
   width: 100% !important;
   max-width: none !important;
-  flex: 1 1 100%;
+  flex: 1 1 auto;
   height: auto !important;
   min-height: 0;
   aspect-ratio: auto !important;
 }
 
-html.muchat-voice-stage.muchat-hide-text #floating .vc_tile:has(video) video {
+html.muchat-voice-stage [data-muchat-stage] .vc_tile:has(video) video,
+html.muchat-voice-stage #floating .vc_tile:has(video) video {
   width: 100% !important;
   height: 100% !important;
   max-width: 100%;
@@ -43,19 +29,41 @@ html.muchat-voice-stage.muchat-hide-text #floating .vc_tile:has(video) video {
   background: #141210 !important;
 }
 
-html.muchat-voice-stage.muchat-hide-text [data-muchat-chat] {
-  display: none !important;
+html.muchat-stage-dragging,
+html.muchat-stage-dragging * {
+  cursor: ns-resize !important;
+  user-select: none !important;
 }
 
-#muchat-stage-bg {
+#muchat-stage-handle {
   position: fixed;
-  z-index: 25;
-  background: #141210;
-  pointer-events: none;
+  z-index: 80;
+  height: 12px;
+  cursor: ns-resize;
+  touch-action: none;
+  pointer-events: all;
 }
 
-#muchat-stage-bg[hidden] {
+#muchat-stage-handle[hidden] {
   display: none !important;
+}
+
+#muchat-stage-handle::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 4px;
+  width: 56px;
+  height: 4px;
+  margin-left: -28px;
+  border-radius: 99px;
+  background: #8a8378;
+  opacity: 0.85;
+}
+
+#muchat-stage-handle:hover::after {
+  background: #e85a2a;
+  opacity: 1;
 }
 
 #muchat-splash {
@@ -107,50 +115,6 @@ html.muchat-voice-stage.muchat-hide-text [data-muchat-chat] {
 @keyframes muchat-splash-load {
   0% { transform: translateX(-120%); }
   100% { transform: translateX(320%); }
-}
-
-#muchat-chat-toggle {
-  position: fixed;
-  z-index: 60;
-  top: 10px;
-  right: 16px;
-  width: auto;
-  height: 36px;
-  padding: 0 12px;
-  border: 0;
-  border-radius: 10px;
-  background: #e85a2a;
-  color: #141210;
-  cursor: pointer;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1;
-  pointer-events: all;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
-}
-
-html.muchat-voice-stage #muchat-chat-toggle {
-  display: inline-flex;
-}
-
-#muchat-chat-toggle[hidden] {
-  display: none !important;
-}
-
-#muchat-chat-toggle:hover {
-  filter: brightness(1.08);
-}
-
-.muchat-voice-dock__btn.is-chat {
-  flex: 1.4;
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 700;
-  gap: 4px;
 }
 
 #muchat-screen-picker {
