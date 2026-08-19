@@ -8,13 +8,17 @@ const js = fs.readFileSync(path.join(__dirname, "public", "boot.js"), "utf8");
 
 test("overlay de voz preenche o palco e prioriza o tile com video", () => {
   assert.match(css, /muchat-voice-stage/);
-  assert.match(css, /100dvh - var\(--muchat-voice-top\)/);
   assert.match(css, /muchat-hide-text/);
+  assert.match(css, /transform:\s*none\s*!important/);
+  assert.match(css, /--muchat-stage-left/);
   assert.match(css, /\.vc_tile:has\(video\)/);
   assert.match(js, /muchat-voice-stage/);
   assert.match(js, /promoteShare/);
   assert.match(js, /muchat-chat-toggle/);
+  assert.match(js, /Mostrar chat/);
+  assert.match(js, /Esconder chat/);
   assert.match(js, /CHAT_PREF/);
+  assert.match(js, /onScreenPicker/);
 });
 
 test("splash e picker de tela no overlay", () => {

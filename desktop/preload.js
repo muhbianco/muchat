@@ -3,6 +3,14 @@
 const { contextBridge, ipcRenderer } = require("electron");
 const { version } = require("./package.json");
 
+let overlayScreenPicker = null;
+let appScreenPicker = null;
+
+ipcRenderer.on("screenPicker", (_event, sources) => {
+  const handler = overlayScreenPicker || appScreenPicker;
+  if (typeof handler === "function") handler(sources);
+});
+
 contextBridge.exposeInMainWorld("native", {
   versions: {
     node: () => process.versions.node,
@@ -14,8 +22,10 @@ contextBridge.exposeInMainWorld("native", {
   maximise: () => ipcRenderer.send("maximise"),
   close: () => ipcRenderer.send("close"),
   onceScreenPicker: (onScreenPick) => {
-    ipcRenderer.removeAllListeners("screenPicker");
-    ipcRenderer.once("screenPicker", (_event, sources) => onScreenPick(sources));
+    appScreenPicker = onScreenPick;
+  },
+  onScreenPicker: (onScreenPick) => {
+    overlayScreenPicker = onScreenPick;
   },
   screenPickerCallback: (idx, audio) => {
     ipcRenderer.send("screenPickerCallback", idx, Boolean(audio));

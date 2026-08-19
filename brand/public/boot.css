@@ -2,31 +2,44 @@ html, body {
   background: #141210 !important;
 }
 
-/* Canal de voz: o palco cobre o chat de texto e o share deixa de ficar em 40vh. */
+/* Palco full-stage: o Stoat prende o card em 40vh + transform inline. */
 html.muchat-voice-stage {
-  --muchat-voice-top: 0px;
+  --muchat-stage-left: 240px;
 }
 
-html.muchat-voice-stage #floating > div {
-  height: calc(100dvh - var(--muchat-voice-top)) !important;
+html.muchat-voice-stage.muchat-hide-text #floating > div {
+  position: fixed !important;
+  transform: none !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: var(--muchat-stage-left) !important;
+  width: auto !important;
+  height: auto !important;
+  max-width: none !important;
+  max-height: none !important;
+  z-index: 20 !important;
 }
 
-html.muchat-voice-stage #floating > div > div {
+html.muchat-voice-stage.muchat-hide-text #floating > div > div {
+  position: absolute !important;
+  inset: 0 !important;
   top: 0 !important;
   height: 100% !important;
+  width: 100% !important;
+  max-width: none !important;
   padding: 8px !important;
   box-sizing: border-box;
 }
 
-html.muchat-voice-stage #floating > div > div > div {
+html.muchat-voice-stage.muchat-hide-text #floating > div > div > div > div {
   height: 100% !important;
   width: 100% !important;
-  max-width: 100% !important;
-  display: flex !important;
-  flex-direction: column !important;
+  max-width: none !important;
+  max-height: none !important;
 }
 
-html.muchat-voice-stage #floating .vc_tile:has(video) {
+html.muchat-voice-stage.muchat-hide-text #floating .vc_tile:has(video) {
   width: 100% !important;
   max-width: none !important;
   flex: 1 1 100%;
@@ -35,21 +48,12 @@ html.muchat-voice-stage #floating .vc_tile:has(video) {
   aspect-ratio: auto !important;
 }
 
-html.muchat-voice-stage #floating .vc_tile:has(video) video {
+html.muchat-voice-stage.muchat-hide-text #floating .vc_tile:has(video) video {
   width: 100% !important;
   height: 100% !important;
   max-width: 100%;
   max-height: 100%;
   object-fit: contain !important;
-}
-
-html.muchat-voice-stage.muchat-hide-text #floating > div {
-  position: fixed !important;
-  top: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
-  height: auto !important;
-  z-index: 6;
 }
 
 #muchat-splash {
@@ -69,31 +73,46 @@ html.muchat-voice-stage.muchat-hide-text #floating > div {
 
 #muchat-chat-toggle {
   position: fixed;
-  z-index: 9;
-  top: 12px;
+  z-index: 40;
+  top: 10px;
   right: 16px;
-  width: 40px;
-  height: 40px;
+  width: auto;
+  height: 36px;
+  padding: 0 12px;
   border: 0;
   border-radius: 10px;
-  background: #2b2926;
-  color: #f3efe6;
+  background: #e85a2a;
+  color: #141210;
   cursor: pointer;
   display: none;
   align-items: center;
   justify-content: center;
-  font-family: "Material Symbols Outlined", sans-serif;
-  font-size: 22px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
   line-height: 1;
-  font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24;
+  pointer-events: all;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
 }
 
 html.muchat-voice-stage #muchat-chat-toggle {
   display: inline-flex;
 }
 
+#muchat-chat-toggle[hidden] {
+  display: none !important;
+}
+
 #muchat-chat-toggle:hover {
-  background: #3a3732;
+  filter: brightness(1.08);
+}
+
+.muchat-voice-dock__btn.is-chat {
+  flex: 1.4;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  gap: 4px;
 }
 
 #muchat-screen-picker {

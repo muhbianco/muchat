@@ -3,30 +3,42 @@
 const { desktopCapturer, ipcMain, session } = require("electron");
 const { mapSources } = require("./capture-map");
 
+function denyDisplayMedia(callback) {
+  try {
+    callback({});
+  } catch {
+    /* Electron throws if video was requested and we deny with {} */
+  }
+}
+
 function setupScreenShare(getWindow) {
   session.defaultSession.setDisplayMediaRequestHandler(
     (request, callback) => {
       desktopCapturer
         .getSources({
           types: ["screen", "window"],
-          thumbnailSize: { width: 320, height: 180 },
+          thumbnailSize: { width: 0, height: 0 },
           fetchWindowIcons: true,
         })
         .then((sources) => {
           if (!sources.length) {
-            callback({});
+            denyDisplayMedia(callback);
             return;
           }
           const win = getWindow();
           if (!win || win.isDestroyed()) {
-            callback({});
+            denyDisplayMedia(callback);
             return;
           }
           let settled = false;
           const done = (result) => {
             if (settled) return;
             settled = true;
-            callback(result);
+            if (result && result.video) {
+              callback(result);
+              return;
+            }
+            denyDisplayMedia(callback);
           };
           ipcMain.removeAllListeners("screenPickerCallback");
           ipcMain.once("screenPickerCallback", (_event, idx, audio) => {
@@ -41,9 +53,13 @@ function setupScreenShare(getWindow) {
             done({ video: sources[idx] });
           });
           setTimeout(() => done({}), 60000);
-          win.webContents.send("screenPicker", mapSources(sources));
+          try {
+            win.webContents.send("screenPicker", mapSources(sources));
+          } catch {
+            done({});
+          }
         })
-        .catch(() => callback({}));
+        .catch(() => denyDisplayMedia(callback));
     },
     { useSystemPicker: false }
   );

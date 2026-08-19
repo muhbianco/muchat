@@ -282,22 +282,47 @@
     shareAutoFocused = true;
   }
 
+  function toggleVoiceChatPref() {
+    const showChat = sessionStorage.getItem(CHAT_PREF) === "1";
+    sessionStorage.setItem(CHAT_PREF, showChat ? "0" : "1");
+    syncVoiceStage();
+  }
+
   function layoutVoiceStage() {
     const layer = floatingLayer();
     const sidebar = findChannelSidebar();
+    const left = sidebar ? Math.round(sidebar.getBoundingClientRect().right) : 240;
+    document.documentElement.style.setProperty("--muchat-stage-left", `${left}px`);
     if (!layer) return;
     if (!document.documentElement.classList.contains(HIDE_TEXT)) {
       layer.style.left = "";
       layer.style.right = "";
       layer.style.top = "";
       layer.style.bottom = "";
+      layer.style.transform = "";
+      layer.style.width = "";
+      layer.style.height = "";
       return;
     }
-    const left = sidebar ? Math.round(sidebar.getBoundingClientRect().right) : 240;
+    layer.style.transform = "none";
     layer.style.left = `${left}px`;
     layer.style.right = "0px";
     layer.style.top = "0px";
     layer.style.bottom = "0px";
+    layer.style.width = "auto";
+    layer.style.height = "auto";
+  }
+
+  function placeChatToggle(btn) {
+    const layer = floatingLayer();
+    if (!layer) {
+      btn.style.top = "12px";
+      btn.style.right = "16px";
+      return;
+    }
+    const box = layer.getBoundingClientRect();
+    btn.style.top = `${Math.max(8, Math.round(box.top + 10))}px`;
+    btn.style.right = `${Math.max(12, Math.round(innerWidth - box.right + 10))}px`;
   }
 
   function ensureChatToggle() {
@@ -306,20 +331,18 @@
       btn = document.createElement("button");
       btn.type = "button";
       btn.id = "muchat-chat-toggle";
-      btn.className = "muchat-chat-toggle material-symbols-outlined";
       btn.addEventListener("click", (event) => {
         event.preventDefault();
         event.stopPropagation();
-        const showChat = sessionStorage.getItem(CHAT_PREF) === "1";
-        sessionStorage.setItem(CHAT_PREF, showChat ? "0" : "1");
-        syncVoiceStage();
+        toggleVoiceChatPref();
       });
       document.body.appendChild(btn);
     }
     const hidden = wantsChatHidden();
-    btn.textContent = hidden ? "chat" : "chat_off";
-    btn.setAttribute("aria-label", hidden ? "Mostrar chat" : "Esconder chat");
+    btn.textContent = hidden ? "Mostrar chat" : "Esconder chat";
+    btn.setAttribute("aria-label", btn.textContent);
     btn.hidden = false;
+    placeChatToggle(btn);
   }
 
   function syncVoiceStage() {
@@ -335,6 +358,9 @@
         layer.style.right = "";
         layer.style.top = "";
         layer.style.bottom = "";
+        layer.style.transform = "";
+        layer.style.width = "";
+        layer.style.height = "";
       }
       if (toggle) toggle.hidden = true;
       return;
@@ -368,8 +394,8 @@
   }
 
   function callActions() {
-    const floating = document.getElementById("floating");
-    const end = iconButton(floating, ["call_end"]);
+    const floating = document.getElementById("floating") || document;
+    const end = iconButton(floating, ["call_end"]) || iconButton(document, ["call_end"]);
     if (!end) return null;
     const bar = end.btn.parentElement;
     if (!bar) return null;
@@ -426,12 +452,17 @@
       '<div class="muchat-voice-dock__actions">' +
       '<button type="button" class="muchat-voice-dock__btn material-symbols-outlined" data-act="mute" aria-label="Microfone">mic</button>' +
       '<button type="button" class="muchat-voice-dock__btn material-symbols-outlined" data-act="deafen" aria-label="Áudio">headset</button>' +
+      '<button type="button" class="muchat-voice-dock__btn is-chat" data-act="chat" aria-label="Chat">Chat</button>' +
       "</div>";
     dock.addEventListener("click", (event) => {
       const btn = event.target.closest("[data-act]");
       if (!btn) return;
       event.preventDefault();
       event.stopPropagation();
+      if (btn.getAttribute("data-act") === "chat") {
+        toggleVoiceChatPref();
+        return;
+      }
       const actions = callActions();
       if (!actions) return;
       if (btn.getAttribute("data-act") === "mute") press(actions.mute && actions.mute.btn);
@@ -439,6 +470,7 @@
         press(actions.deafen && actions.deafen.btn);
       }
       if (btn.getAttribute("data-act") === "hangup") press(actions.hangup);
+      if (btn.getAttribute("data-act") === "chat") toggleVoiceChatPref();
     });
     document.body.appendChild(dock);
     return dock;
@@ -462,6 +494,7 @@
     }
     const muteBtn = dock.querySelector('[data-act="mute"]');
     const deafenBtn = dock.querySelector('[data-act="deafen"]');
+    const chatBtn = dock.querySelector('[data-act="chat"]');
     muteBtn.textContent = actions.muted ? "mic_off" : "mic";
     muteBtn.classList.toggle("is-off", actions.muted);
     muteBtn.setAttribute("aria-label", actions.muted ? "Ativar microfone" : "Silenciar microfone");
@@ -471,6 +504,11 @@
       "aria-label",
       actions.deafened ? "Ativar áudio" : "Ensurdecer"
     );
+    if (chatBtn) {
+      const hidden = wantsChatHidden();
+      chatBtn.textContent = hidden ? "Chat" : "Texto";
+      chatBtn.setAttribute("aria-label", hidden ? "Mostrar chat" : "Esconder chat");
+    }
     dock.hidden = false;
     const box = sidebar.getBoundingClientRect();
     dock.style.left = `${Math.round(box.left)}px`;
@@ -654,6 +692,12 @@
   }
 
   function listenScreenPicker() {
+    if (window.native && typeof window.native.onScreenPicker === "function") {
+      window.native.onScreenPicker((sources) => {
+        showScreenPicker(sources);
+      });
+      return;
+    }
     if (!window.native || typeof window.native.onceScreenPicker !== "function") return;
     window.native.onceScreenPicker((sources) => {
       showScreenPicker(sources);

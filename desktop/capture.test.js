@@ -31,6 +31,7 @@ test("o pacote inclui preload e captura de tela", () => {
   assert.ok(pkg.build.files.includes("splash.html"));
   assert.match(pkg.build.nsis.artifactName, /\$\{version\}/);
   assert.equal(pkg.build.nsis.include, "installer.nsh");
+  assert.equal(pkg.version, "1.0.8");
 });
 
 test("pinta a janela sem GPU e mostra a versão no título", () => {
@@ -41,4 +42,13 @@ test("pinta a janela sem GPU e mostra a versão no título", () => {
   assert.match(main, /splashReady/);
   assert.match(main, /splash.html/);
   assert.match(fs.readFileSync(path.join(__dirname, "installer.nsh"), "utf8"), /taskkill \/F \/IM Muchat\.exe/);
+});
+
+test("picker de tela nao gera thumbnail pesada nem explode ao cancelar", () => {
+  const capture = fs.readFileSync(path.join(__dirname, "capture.js"), "utf8");
+  const preload = fs.readFileSync(path.join(__dirname, "preload.js"), "utf8");
+  assert.match(capture, /thumbnailSize:\s*\{\s*width:\s*0,\s*height:\s*0/);
+  assert.match(capture, /denyDisplayMedia/);
+  assert.match(preload, /onScreenPicker/);
+  assert.match(preload, /overlayScreenPicker \|\| appScreenPicker/);
 });
