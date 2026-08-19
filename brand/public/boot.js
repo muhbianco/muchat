@@ -282,6 +282,138 @@
     shareAutoFocused = true;
   }
 
+  function important(el, prop, value) {
+    el.style.setProperty(prop, value, "important");
+  }
+
+  function inVoiceCall() {
+    if (document.fullscreenElement) return false;
+    if (callActions()) return true;
+    return Boolean(document.querySelector("#floating .vc_tile"));
+  }
+
+  function findGrayCard(fromBtn) {
+    let el = fromBtn;
+    let fallback = null;
+    while (el && el.id !== "floating" && el !== document.body) {
+      const box = el.getBoundingClientRect();
+      if (box.width >= 280 && box.height >= 120) {
+        fallback = el;
+        if (box.height >= innerHeight * 0.25 && box.height <= innerHeight * 0.7) {
+          return el;
+        }
+      }
+      el = el.parentElement;
+    }
+    return fallback;
+  }
+
+  function fillStageBox(el, left) {
+    if (!(el instanceof HTMLElement)) return;
+    el.setAttribute("data-muchat-stage", "1");
+    important(el, "position", "fixed");
+    important(el, "transform", "none");
+    important(el, "top", "0px");
+    important(el, "right", "0px");
+    important(el, "bottom", "0px");
+    important(el, "left", `${left}px`);
+    important(el, "width", "auto");
+    important(el, "height", "100dvh");
+    important(el, "max-width", "none");
+    important(el, "max-height", "none");
+    important(el, "z-index", "30");
+    important(el, "border-radius", "0px");
+    important(el, "overflow", "visible");
+  }
+
+  function restoreStageBoxes() {
+    for (const el of document.querySelectorAll("[data-muchat-stage]")) {
+      for (const prop of [
+        "position",
+        "transform",
+        "top",
+        "right",
+        "bottom",
+        "left",
+        "width",
+        "height",
+        "max-width",
+        "max-height",
+        "z-index",
+        "border-radius",
+        "overflow",
+        "display",
+      ]) {
+        el.style.removeProperty(prop);
+      }
+      el.removeAttribute("data-muchat-stage");
+    }
+    for (const el of document.querySelectorAll("[data-muchat-chat]")) {
+      el.style.removeProperty("display");
+      el.removeAttribute("data-muchat-chat");
+    }
+  }
+
+  function findComposerHost() {
+    const root = document.getElementById("root");
+    if (!root) return null;
+    for (const el of root.querySelectorAll("textarea, input, [contenteditable='true']")) {
+      const ph = el.getAttribute("placeholder") || el.getAttribute("aria-label") || "";
+      if (/message/i.test(ph)) return el;
+    }
+    for (const el of root.querySelectorAll("*")) {
+      if (el.childElementCount !== 0) continue;
+      const t = (el.textContent || "").trim();
+      if (/^Message\s+\S/i.test(t) && t.length < 80) return el;
+    }
+    return null;
+  }
+
+  function hideTextPane(card) {
+    const cardBox = (card || floatingLayer() || document.body).getBoundingClientRect();
+    const host = findComposerHost();
+    let target = null;
+    if (host) {
+      let el = host;
+      while (el && el.id !== "root") {
+        const parent = el.parentElement;
+        if (!parent || parent.id === "root") {
+          target = el;
+          break;
+        }
+        const pbox = parent.getBoundingClientRect();
+        if (pbox.top < cardBox.bottom - 48) {
+          target = el;
+          break;
+        }
+        el = parent;
+      }
+    }
+    if (!target) {
+      let best = null;
+      let bestArea = 0;
+      const root = document.getElementById("root");
+      if (root) {
+        for (const el of root.querySelectorAll("div")) {
+          if (el.closest("#floating, #muchat-voice-dock, #muchat-chat-toggle")) continue;
+          const box = el.getBoundingClientRect();
+          if (box.top < cardBox.bottom - 16) continue;
+          if (Math.abs(box.left - cardBox.left) > 90) continue;
+          if (box.width < 240 || box.height < 100) continue;
+          const area = box.width * box.height;
+          if (area > bestArea) {
+            bestArea = area;
+            best = el;
+          }
+        }
+      }
+      target = best;
+    }
+    if (!(target instanceof HTMLElement)) return;
+    target.setAttribute("data-muchat-chat", "1");
+    important(target, "display", "none");
+  }
+
   function toggleVoiceChatPref() {
     const showChat = sessionStorage.getItem(CHAT_PREF) === "1";
     sessionStorage.setItem(CHAT_PREF, showChat ? "0" : "1");
@@ -289,43 +421,23 @@
   }
 
   function layoutVoiceStage() {
-    const layer = floatingLayer();
+    const actions = callActions();
     const sidebar = findChannelSidebar();
     const left = sidebar ? Math.round(sidebar.getBoundingClientRect().right) : 240;
     document.documentElement.style.setProperty("--muchat-stage-left", `${left}px`);
-    if (!layer) return;
     if (!document.documentElement.classList.contains(HIDE_TEXT)) {
-      layer.style.left = "";
-      layer.style.right = "";
-      layer.style.top = "";
-      layer.style.bottom = "";
-      layer.style.transform = "";
-      layer.style.width = "";
-      layer.style.height = "";
+      restoreStageBoxes();
       return;
     }
-    layer.style.transform = "none";
-    layer.style.left = `${left}px`;
-    layer.style.right = "0px";
-    layer.style.top = "0px";
-    layer.style.bottom = "0px";
-    layer.style.width = "auto";
-    layer.style.height = "auto";
-  }
-
-  function placeChatToggle(btn) {
+    const hangup = actions && actions.hangup;
+    const card = hangup ? findGrayCard(hangup) : null;
     const layer = floatingLayer();
-    if (!layer) {
-      btn.style.top = "12px";
-      btn.style.right = "16px";
-      return;
-    }
-    const box = layer.getBoundingClientRect();
-    btn.style.top = `${Math.max(8, Math.round(box.top + 10))}px`;
-    btn.style.right = `${Math.max(12, Math.round(innerWidth - box.right + 10))}px`;
+    if (layer) fillStageBox(layer, left);
+    if (card) fillStageBox(card, left);
+    hideTextPane(card || layer);
   }
 
-  function ensureChatToggle() {
+  function ensureChatToggle(card) {
     let btn = document.getElementById("muchat-chat-toggle");
     if (!btn) {
       btn = document.createElement("button");
@@ -336,39 +448,41 @@
         event.stopPropagation();
         toggleVoiceChatPref();
       });
-      document.body.appendChild(btn);
     }
     const hidden = wantsChatHidden();
     btn.textContent = hidden ? "Mostrar chat" : "Esconder chat";
     btn.setAttribute("aria-label", btn.textContent);
     btn.hidden = false;
-    placeChatToggle(btn);
+    const host = card || floatingLayer() || document.body;
+    if (btn.parentElement !== host) host.appendChild(btn);
+    important(btn, "position", "absolute");
+    important(btn, "top", "10px");
+    important(btn, "right", "10px");
+    important(btn, "left", "auto");
+    important(btn, "z-index", "50");
   }
 
   function syncVoiceStage() {
     const root = document.documentElement;
-    const inCall = Boolean(callActions()) && !document.fullscreenElement;
+    const inCall = inVoiceCall();
     const toggle = document.getElementById("muchat-chat-toggle");
     if (!inCall) {
       root.classList.remove(VOICE_STAGE, HIDE_TEXT);
       shareAutoFocused = false;
-      const layer = floatingLayer();
-      if (layer) {
-        layer.style.left = "";
-        layer.style.right = "";
-        layer.style.top = "";
-        layer.style.bottom = "";
-        layer.style.transform = "";
-        layer.style.width = "";
-        layer.style.height = "";
+      restoreStageBoxes();
+      if (toggle) {
+        toggle.hidden = true;
+        if (toggle.parentElement && toggle.parentElement !== document.body) {
+          document.body.appendChild(toggle);
+        }
       }
-      if (toggle) toggle.hidden = true;
       return;
     }
     root.classList.add(VOICE_STAGE);
     root.classList.toggle(HIDE_TEXT, wantsChatHidden());
     layoutVoiceStage();
-    ensureChatToggle();
+    const hangup = (callActions() || {}).hangup;
+    ensureChatToggle(hangup ? findGrayCard(hangup) : null);
     promoteShare();
   }
 

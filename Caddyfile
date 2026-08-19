@@ -5,6 +5,7 @@
 
 	route /muchat-brand* {
 		uri strip_prefix /muchat-brand
+		header Cache-Control "no-store"
 		root * /muchat-public
 		file_server
 	}
@@ -88,6 +89,9 @@
 			header_down Location "^/" "/ingress/"
 		}
 	}
+
+	@homepage path /
+	header @homepage Cache-Control "no-store"
 
 	reverse_proxy http://web:5000
 }

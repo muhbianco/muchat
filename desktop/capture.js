@@ -1,6 +1,6 @@
 "use strict";
 
-const { desktopCapturer, ipcMain, session } = require("electron");
+const { desktopCapturer, ipcMain, session, Menu } = require("electron");
 const { mapSources } = require("./capture-map");
 
 function denyDisplayMedia(callback) {
@@ -40,28 +40,40 @@ function setupScreenShare(getWindow) {
             }
             denyDisplayMedia(callback);
           };
-          ipcMain.removeAllListeners("screenPickerCallback");
-          ipcMain.once("screenPickerCallback", (_event, idx, audio) => {
+          const pick = (idx) => {
             if (!Number.isInteger(idx) || idx < 0 || idx >= sources.length) {
               done({});
               return;
             }
-            if (audio || request.audioRequested) {
+            if (request.audioRequested) {
               done({ video: sources[idx], audio: "loopback" });
               return;
             }
             done({ video: sources[idx] });
-          });
-          setTimeout(() => done({}), 60000);
+          };
+          ipcMain.removeAllListeners("screenPickerCallback");
+          ipcMain.once("screenPickerCallback", (_event, idx) => pick(idx));
           try {
             win.webContents.send("screenPicker", mapSources(sources));
           } catch {
-            done({});
+            /* overlay is optional */
           }
+          const template = sources.map((source, idx) => ({
+            label: String(source.name || "Fonte").slice(0, 80),
+            click: () => pick(idx),
+          }));
+          template.push({ type: "separator" });
+          template.push({ label: "Cancelar", click: () => done({}) });
+          Menu.buildFromTemplate(template).popup({
+            window: win,
+            callback: () => {
+              setTimeout(() => done({}), 50);
+            },
+          });
         })
         .catch(() => denyDisplayMedia(callback));
     },
-    { useSystemPicker: false }
+    { useSystemPicker: true }
   );
 
   ipcMain.on("minimise", () => {

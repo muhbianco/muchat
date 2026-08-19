@@ -18,7 +18,10 @@ test("overlay de voz preenche o palco e prioriza o tile com video", () => {
   assert.match(js, /Mostrar chat/);
   assert.match(js, /Esconder chat/);
   assert.match(js, /CHAT_PREF/);
-  assert.match(js, /onScreenPicker/);
+  assert.match(js, /data-muchat-stage/);
+  assert.match(js, /fillStageBox/);
+  assert.match(js, /hideTextPane/);
+  assert.match(js, /findGrayCard/);
 });
 
 test("splash e picker de tela no overlay", () => {
