@@ -66,6 +66,11 @@ html.muchat-stage-dragging * {
   opacity: 1;
 }
 
+html.muchat-voice-stage [data-muchat-composer] {
+  flex-shrink: 0 !important;
+  min-height: 52px !important;
+}
+
 #muchat-splash {
   position: fixed;
   inset: 0;

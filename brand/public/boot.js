@@ -356,8 +356,56 @@
     return null;
   }
 
+  function containsComposer(el) {
+    if (!el || !el.querySelector) return false;
+    for (const node of el.querySelectorAll("textarea, [contenteditable='true']")) {
+      const ph = (
+        node.getAttribute("placeholder") ||
+        node.getAttribute("aria-label") ||
+        ""
+      ).toLowerCase();
+      if (node.tagName === "TEXTAREA" || ph.includes("message") || node.isContentEditable) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function findComposerBar() {
+    const root = document.getElementById("root");
+    if (!root) return null;
+    for (const el of root.querySelectorAll("textarea, [contenteditable='true']")) {
+      const ph = el.getAttribute("placeholder") || el.getAttribute("aria-label") || "";
+      if (!/message/i.test(ph) && el.tagName !== "TEXTAREA") continue;
+      let cur = el.parentElement;
+      let best = el;
+      for (let i = 0; i < 8 && cur && cur.id !== "root"; i++) {
+        const box = cur.getBoundingClientRect();
+        if (box.height > 180) break;
+        if (box.width >= 200 && box.height >= 40) best = cur;
+        cur = cur.parentElement;
+      }
+      return best;
+    }
+    return null;
+  }
+
+  function composerReserve() {
+    const bar = findComposerBar();
+    if (!bar) return 64;
+    return Math.max(56, Math.round(bar.getBoundingClientRect().height));
+  }
+
+  function pinComposer() {
+    const bar = findComposerBar();
+    if (!bar) return;
+    bar.setAttribute("data-muchat-composer", "1");
+    important(bar, "flex-shrink", "0");
+    important(bar, "min-height", "52px");
+  }
+
   function stageMaxHeight() {
-    return Math.max(STAGE_MIN + 40, innerHeight - 72);
+    return Math.max(STAGE_MIN + 40, innerHeight - 56 - composerReserve() - 12);
   }
 
   function clampStageHeight(px) {
@@ -394,22 +442,31 @@
 
   function findVoiceMount(card) {
     const marked = document.querySelector("[data-muchat-mount]");
-    if (marked && document.body.contains(marked)) return marked;
+    if (marked && document.body.contains(marked) && !containsComposer(marked)) {
+      return marked;
+    }
+    if (marked) {
+      marked.style.removeProperty("height");
+      marked.style.removeProperty("min-height");
+      marked.style.removeProperty("max-height");
+      marked.removeAttribute("data-muchat-mount");
+    }
     const want = card.getBoundingClientRect();
     const root = document.getElementById("root");
     if (!root) return null;
     let best = null;
-    let bestH = 0;
+    let bestH = Infinity;
     for (const el of root.querySelectorAll("div")) {
       if (el === card || el.closest("#floating, #muchat-voice-dock, #muchat-stage-handle")) {
         continue;
       }
+      if (containsComposer(el)) continue;
       const box = el.getBoundingClientRect();
       if (Math.abs(box.left - want.left) > 28) continue;
       if (Math.abs(box.width - want.width) > 28) continue;
       if (Math.abs(box.top - want.top) > 28) continue;
-      if (box.height < 140 || box.height > innerHeight * 0.82) continue;
-      if (box.height >= bestH) {
+      if (box.height < 140) continue;
+      if (box.height < bestH) {
         bestH = box.height;
         best = el;
       }
@@ -454,7 +511,7 @@
   function restoreStageBoxes() {
     document.documentElement.classList.remove("muchat-stage-dragging");
     stageDragging = false;
-    for (const el of document.querySelectorAll("[data-muchat-stage], [data-muchat-mount]")) {
+    for (const el of document.querySelectorAll("[data-muchat-stage], [data-muchat-mount], [data-muchat-composer]")) {
       for (const prop of [
         "height",
         "max-height",
@@ -463,6 +520,7 @@
         "display",
         "flex",
         "flex-direction",
+        "flex-shrink",
       ]) {
         el.style.removeProperty(prop);
       }
@@ -475,6 +533,7 @@
       }
       el.removeAttribute("data-muchat-stage");
       el.removeAttribute("data-muchat-mount");
+      el.removeAttribute("data-muchat-composer");
     }
     const handle = document.getElementById("muchat-stage-handle");
     if (handle) handle.hidden = true;
@@ -533,13 +592,13 @@
   function layoutVoiceStage() {
     const card = findStageCard();
     if (!card) {
-      const handle = document.getElementById("muchat-stage-handle");
-      if (handle) handle.hidden = true;
+      restoreStageBoxes();
       return;
     }
     const saved = readStageHeight();
     if (saved) applyStageHeight(card, saved);
     else fillCardColumn(card);
+    pinComposer();
     placeStageHandle(card);
     raiseStoatModals();
   }

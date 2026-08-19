@@ -23,7 +23,11 @@ test("overlay de voz deixa a box cinza redimensionavel", () => {
   assert.match(js, /findStageCard/);
   assert.match(js, /applyStageHeight/);
   assert.match(js, /placeStageHandle/);
-  assert.match(js, /STAGE_H_PREF/);
+  assert.match(js, /containsComposer/);
+  assert.match(js, /pinComposer/);
+  assert.match(js, /data-muchat-composer/);
+  assert.match(js, /flex-shrink/);
+  assert.match(css, /data-muchat-composer/);
   assert.match(js, /raiseStoatModals/);
   assert.match(js, /10002/);
   assert.match(js, /muchat-voice-dock/);
