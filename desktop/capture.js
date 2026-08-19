@@ -20,7 +20,7 @@ function getShareSources() {
   return Promise.race([
     desktopCapturer.getSources(opts),
     new Promise((_, reject) => {
-      setTimeout(() => reject(new Error("capturer-timeout")), 2500);
+      setTimeout(() => reject(new Error("capturer-timeout")), 8000);
     }),
   ]);
 }
@@ -43,6 +43,7 @@ function setupScreenShare(getWindow) {
           const done = (result) => {
             if (settled) return;
             settled = true;
+            clearTimeout(watchdog);
             ipcMain.removeAllListeners("screenPickerCallback");
             if (result && result.video) {
               callback(result);
@@ -50,6 +51,7 @@ function setupScreenShare(getWindow) {
             }
             denyDisplayMedia(callback);
           };
+          const watchdog = setTimeout(() => done({}), 120000);
           const pick = (idx) => {
             if (!Number.isInteger(idx) || idx < 0 || idx >= sources.length) {
               done({});
@@ -71,7 +73,7 @@ function setupScreenShare(getWindow) {
         })
         .catch(() => denyDisplayMedia(callback));
     },
-    { useSystemPicker: true }
+    { useSystemPicker: false }
   );
 
   ipcMain.on("minimise", () => {

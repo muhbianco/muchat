@@ -17,7 +17,7 @@ test("mapeia fontes do desktopCapturer para o picker do Stoat", () => {
     { id: "window:1:0", name: "Jogo", appIcon: null },
   ]);
   assert.equal(mapped[0].isFullScreen, true);
-  assert.equal(mapped[0].thumbnail, "data:image/png,thumb");
+  assert.equal(mapped[0].thumbnail, undefined);
   assert.equal(mapped[1].isFullScreen, false);
   assert.equal(mapped[1].idx, 1);
   assert.equal(mapped[1].name, "Jogo");
@@ -32,7 +32,7 @@ test("o pacote inclui preload e captura de tela", () => {
   assert.ok(pkg.build.files.includes("update.js"));
   assert.match(pkg.build.nsis.artifactName, /\$\{version\}/);
   assert.equal(pkg.build.nsis.include, "installer.nsh");
-  assert.equal(pkg.version, "1.0.13");
+  assert.equal(pkg.version, "1.0.14");
   assert.equal(pkg.dependencies["electron-updater"], "6.6.2");
   assert.equal(pkg.build.publish.provider, "generic");
   assert.match(pkg.build.publish.url, /chat\.muhbianco\.com\.br\/download/);
@@ -47,7 +47,9 @@ test("splash na mesma janela com barra de progresso, sem tela preta ao mostrar",
   assert.match(main, /Muchat \$\{version\}/);
   assert.match(main, /splashReady/);
   assert.match(main, /splash.html/);
-  assert.match(main, /setProgressBar/);
+  assert.match(main, /setProgressBar\(-1,\s*\{\s*mode:\s*"none"/);
+  assert.match(main, /did-stop-loading/);
+  assert.match(main, /Atualizando\|Instalando/);
   assert.match(main, /show:\s*true/);
   assert.match(main, /webContents\.invalidate/);
   assert.doesNotMatch(main, /splashWindow/);
@@ -61,13 +63,16 @@ test("splash na mesma janela com barra de progresso, sem tela preta ao mostrar",
   assert.match(fs.readFileSync(path.join(__dirname, "installer.nsh"), "utf8"), /taskkill \/F \/IM Muchat\.exe/);
 });
 
-test("picker de tela usa o seletor do sistema, sem menu nativo nem thumbnail que trava", () => {
+test("picker de tela nao gera thumbnail nem usa o seletor do sistema", () => {
   const capture = fs.readFileSync(path.join(__dirname, "capture.js"), "utf8");
+  const map = fs.readFileSync(path.join(__dirname, "capture-map.js"), "utf8");
   const preload = fs.readFileSync(path.join(__dirname, "preload.js"), "utf8");
-  assert.match(capture, /useSystemPicker:\s*true/);
+  assert.match(capture, /useSystemPicker:\s*false/);
   assert.doesNotMatch(capture, /Menu\.buildFromTemplate/);
   assert.match(capture, /thumbnailSize:\s*\{\s*width:\s*0/);
-  assert.match(capture, /capturer-timeout/);
+  assert.match(capture, /fetchWindowIcons:\s*false/);
   assert.match(capture, /denyDisplayMedia/);
+  assert.doesNotMatch(map, /toDataURL/);
+  assert.match(preload, /overlayScreenPicker/);
   assert.match(preload, /onceScreenPicker/);
 });

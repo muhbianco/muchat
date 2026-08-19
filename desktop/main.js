@@ -44,7 +44,9 @@ function paintVisibleWindow(win) {
 function setLoadProgress(pct, label) {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   const clamped = Math.max(0, Math.min(100, Number(pct) || 0));
-  mainWindow.setProgressBar(clamped / 100);
+  if (/Atualizando|Instalando/.test(String(label || ""))) {
+    mainWindow.setProgressBar(clamped / 100);
+  }
   try {
     mainWindow.webContents.send("loadProgress", {
       pct: Math.round(clamped),
@@ -57,7 +59,11 @@ function setLoadProgress(pct, label) {
 
 function clearLoadProgress() {
   if (!mainWindow || mainWindow.isDestroyed()) return;
-  mainWindow.setProgressBar(-1);
+  try {
+    mainWindow.setProgressBar(-1, { mode: "none" });
+  } catch {
+    mainWindow.setProgressBar(-1);
+  }
 }
 
 function showMainWindow() {
@@ -124,6 +130,7 @@ function createWindow() {
       maybeInstallUpdate(setLoadProgress, () => {
         isQuitting = true;
       }).then((result) => {
+        clearLoadProgress();
         if (win.isDestroyed() || result === "relaunch") return;
         loadPhase = "chat";
         setLoadProgress(30, "Carregando…");
@@ -132,17 +139,21 @@ function createWindow() {
       return;
     }
     if (loadPhase === "chat") {
-      setLoadProgress(80, "Carregando…");
+      clearLoadProgress();
       paintVisibleWindow(win);
     }
   });
 
   win.webContents.on("did-start-loading", () => {
-    if (loadPhase === "chat") setLoadProgress(40);
+    if (loadPhase === "chat") setLoadProgress(40, "Carregando…");
   });
 
   win.webContents.on("dom-ready", () => {
-    if (loadPhase === "chat") setLoadProgress(62);
+    if (loadPhase === "chat") setLoadProgress(62, "Carregando…");
+  });
+
+  win.webContents.on("did-stop-loading", () => {
+    if (loadPhase === "chat") clearLoadProgress();
   });
 
   win.webContents.on("did-fail-load", (_event, code, desc, url, isMainFrame) => {

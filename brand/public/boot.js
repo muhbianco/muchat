@@ -491,18 +491,8 @@
   }
 
   function raiseStoatModals() {
-    const nodes = new Set([
-      ...document.querySelectorAll('[role="dialog"], [aria-modal="true"]'),
-      ...document.querySelectorAll("body > div"),
-    ]);
-    for (const el of nodes) {
+    for (const el of document.querySelectorAll('[role="dialog"], [aria-modal="true"]')) {
       if (!el || (el.id && el.id.startsWith("muchat-"))) continue;
-      if (el.id === "floating" || el.querySelector(".vc_tile, video")) continue;
-      const cs = getComputedStyle(el);
-      if (cs.position !== "fixed" && cs.position !== "absolute") continue;
-      const box = el.getBoundingClientRect();
-      if (box.width < 200 || box.height < 72) continue;
-      if (box.width > innerWidth * 0.85 || box.height > innerHeight * 0.9) continue;
       important(el, "z-index", "10002");
       important(el, "pointer-events", "auto");
     }
@@ -954,12 +944,12 @@
   }
 
   function listenScreenPicker() {
-    if (!window.native || typeof window.native.onceScreenPicker !== "function") return;
-    window.native.onceScreenPicker((sources) => {
+    if (!window.native || typeof window.native.onScreenPicker !== "function") return;
+    window.native.onScreenPicker((sources) => {
       showScreenPicker(sources);
-      listenScreenPicker();
     });
   }
+  listenScreenPicker();
 
   function findJoinVoiceButton() {
     for (const el of document.querySelectorAll("button, [role='button']")) {

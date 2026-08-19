@@ -7,8 +7,14 @@ let overlayScreenPicker = null;
 let appScreenPicker = null;
 
 ipcRenderer.on("screenPicker", (_event, sources) => {
-  const handler = overlayScreenPicker || appScreenPicker;
-  if (typeof handler === "function") handler(sources);
+  const overlay = overlayScreenPicker;
+  const app = appScreenPicker;
+  appScreenPicker = null;
+  if (typeof overlay === "function") {
+    overlay(sources);
+    return;
+  }
+  if (typeof app === "function") app(sources);
 });
 
 contextBridge.exposeInMainWorld("native", {
