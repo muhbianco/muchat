@@ -111,7 +111,10 @@ services:
   web:
     volumes:
       - ./brand/generated-index.html:/app/dist/index.html:ro
-      - ./brand/generated-index.html:/app/dist_injected/index.html:ro
+    command:
+      - sh
+      - -c
+      - node inject.js && cp /app/dist/index.html /app/dist_injected/index.html && exec sirv dist_injected --port 5000 --cors --single --host
     deploy:
       resources:
         limits:
