@@ -116,30 +116,6 @@
     /* never block the Stoat bundle */
   }
 
-  let shareQuality = { width: 1280, height: 720, frameRate: 30 };
-
-  function patchGetDisplayMedia() {
-    const devices = navigator.mediaDevices;
-    if (!devices || !devices.getDisplayMedia) return;
-    const orig = devices.getDisplayMedia.bind(devices);
-    devices.getDisplayMedia = (constraints) => {
-      const audio = constraints && constraints.audio ? constraints.audio : false;
-      return orig({
-        audio,
-        video: {
-          width: { ideal: shareQuality.width },
-          height: { ideal: shareQuality.height },
-          frameRate: { ideal: shareQuality.frameRate },
-        },
-      });
-    };
-  }
-  try {
-    patchGetDisplayMedia();
-  } catch {
-    /* never block the Stoat bundle */
-  }
-
   document.addEventListener(
     "contextmenu",
     (event) => {
@@ -517,7 +493,7 @@
   function raiseStoatModals() {
     for (const el of document.querySelectorAll('[role="dialog"], [aria-modal="true"]')) {
       if (!el || (el.id && el.id.startsWith("muchat-"))) continue;
-      important(el, "z-index", "10002");
+      important(el, "z-index", "10050");
       important(el, "pointer-events", "auto");
     }
   }
@@ -725,14 +701,6 @@
       }
       if (btn.getAttribute("data-act") === "hangup") press(actions.hangup);
       if (btn.getAttribute("data-act") === "share") {
-        if (actions.sharing) {
-          press(actions.share && actions.share.btn);
-          return;
-        }
-        if (window.native && typeof window.native.armScreenShareSync === "function") {
-          startShareFlow(actions.share && actions.share.btn);
-          return;
-        }
         press(actions.share && actions.share.btn);
       }
     });
@@ -892,239 +860,6 @@
       : kick.before(item);
   }
 
-  let pickerKeyHandler = null;
-  let pickerOnPick = null;
-  let sharePassThrough = false;
-  let shareFlowId = 0;
-
-  function closeScreenPicker() {
-    if (pickerKeyHandler) {
-      document.removeEventListener("keydown", pickerKeyHandler);
-      pickerKeyHandler = null;
-    }
-    pickerOnPick = null;
-    const modal = document.getElementById("muchat-screen-picker");
-    if (modal) modal.remove();
-  }
-
-  function pickScreen(idx) {
-    const onPick = pickerOnPick;
-    closeScreenPicker();
-    if (idx < 0) shareFlowId += 1;
-    if (typeof onPick === "function") onPick(idx);
-  }
-
-  function showScreenPicker(sources, onPick, opts) {
-    closeScreenPicker();
-    pickerOnPick = onPick;
-    const loading = Boolean(opts && opts.loading);
-    const error = Boolean(opts && opts.error);
-    const list = Array.isArray(sources) ? sources : [];
-    const screens = list.filter((s) => s.isFullScreen);
-    const windows = list.filter((s) => !s.isFullScreen);
-    let tab = windows.length || !screens.length ? "apps" : "screens";
-    let selectedIdx = null;
-    const modal = document.createElement("div");
-    modal.id = "muchat-screen-picker";
-
-    function applyQualityFromDom() {
-      const quality = modal.querySelector("[data-quality]");
-      const fps = modal.querySelector("[data-fps]");
-      if (quality && quality.value === "1080") {
-        shareQuality.width = 1920;
-        shareQuality.height = 1080;
-      } else {
-        shareQuality.width = 1280;
-        shareQuality.height = 720;
-      }
-      if (fps) shareQuality.frameRate = Number(fps.value) || 30;
-    }
-
-    function escapeName(value) {
-      return String(value || "Fonte")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;");
-    }
-
-    function itemsHtml(items, placeholder) {
-      if (!items.length) {
-        return '<p class="muchat-screen-picker__status">Nada para mostrar nesta aba.</p>';
-      }
-      return (
-        '<div class="muchat-screen-picker__grid">' +
-        items
-          .map((source) => {
-            const on = source.idx === selectedIdx ? " is-on" : "";
-            return (
-              `<button type="button" class="muchat-screen-picker__item${on}" data-idx="${source.idx}">` +
-              `<div class="muchat-screen-picker__ph">${placeholder}</div>` +
-              `<span>${escapeName(source.name)}</span></button>`
-            );
-          })
-          .join("") +
-        "</div>"
-      );
-    }
-
-    function render() {
-      let body = "";
-      const canPick = !loading && !error && (screens.length > 0 || windows.length > 0);
-      if (loading) {
-        body = '<p class="muchat-screen-picker__status">Carregando telas…</p>';
-      } else if (error || !canPick) {
-        body =
-          '<p class="muchat-screen-picker__status">Não deu para listar as telas. Fecha este aviso e tenta de novo.</p>';
-      } else {
-        const appsOn = tab === "apps" ? " is-on" : "";
-        const screensOn = tab === "screens" ? " is-on" : "";
-        body =
-          '<div class="muchat-screen-picker__tabs">' +
-          `<button type="button" class="muchat-screen-picker__tab${appsOn}" data-tab="apps">Aplicativos</button>` +
-          `<button type="button" class="muchat-screen-picker__tab${screensOn}" data-tab="screens">Telas</button>` +
-          "</div>" +
-          (tab === "apps" ? itemsHtml(windows, "Janela") : itemsHtml(screens, "Tela"));
-      }
-      const quality = shareQuality.height >= 1080 ? "1080" : "720";
-      const fps = String(shareQuality.frameRate || 30);
-      const liveOff =
-        !canPick || !Number.isInteger(selectedIdx) || selectedIdx < 0 ? " disabled" : "";
-      modal.innerHTML =
-        '<div class="muchat-screen-picker__panel">' +
-        "<h2>Compartilhar tela</h2>" +
-        body +
-        '<div class="muchat-screen-picker__foot">' +
-        '<div class="muchat-screen-picker__quality">' +
-        `<label>Quality <select data-quality><option value="720"${quality === "720" ? " selected" : ""}>720p</option>` +
-        `<option value="1080"${quality === "1080" ? " selected" : ""}>1080p</option></select></label>` +
-        `<label>FPS <select data-fps><option value="15"${fps === "15" ? " selected" : ""}>15</option>` +
-        `<option value="30"${fps === "30" ? " selected" : ""}>30</option>` +
-        `<option value="60"${fps === "60" ? " selected" : ""}>60</option></select></label>` +
-        "</div>" +
-        '<div class="muchat-screen-picker__actions">' +
-        '<button type="button" class="muchat-screen-picker__cancel">Cancelar</button>' +
-        `<button type="button" class="muchat-screen-picker__live"${liveOff}>Go Live</button>` +
-        "</div></div></div>";
-    }
-
-    modal.addEventListener("click", (event) => {
-      if (event.target === modal) {
-        pickScreen(-1);
-        return;
-      }
-      const tabBtn = event.target.closest("[data-tab]");
-      if (tabBtn) {
-        event.preventDefault();
-        tab = tabBtn.getAttribute("data-tab") === "screens" ? "screens" : "apps";
-        render();
-        return;
-      }
-      const item = event.target.closest("[data-idx]");
-      if (item) {
-        event.preventDefault();
-        selectedIdx = Number(item.getAttribute("data-idx"));
-        render();
-        return;
-      }
-      if (event.target.closest(".muchat-screen-picker__cancel")) {
-        event.preventDefault();
-        pickScreen(-1);
-        return;
-      }
-      if (event.target.closest(".muchat-screen-picker__live")) {
-        event.preventDefault();
-        if (!Number.isInteger(selectedIdx) || selectedIdx < 0) return;
-        applyQualityFromDom();
-        pickScreen(selectedIdx);
-      }
-    });
-    modal.addEventListener("change", (event) => {
-      if (event.target.closest("[data-quality], [data-fps]")) applyQualityFromDom();
-    });
-
-    pickerKeyHandler = (event) => {
-      if (event.key !== "Escape") return;
-      pickScreen(-1);
-    };
-    document.addEventListener("keydown", pickerKeyHandler);
-    render();
-    document.body.appendChild(modal);
-  }
-
-  function armShare(idx) {
-    if (!window.native || typeof window.native.armScreenShareSync !== "function") {
-      return false;
-    }
-    try {
-      return window.native.armScreenShareSync(idx) === true;
-    } catch {
-      return false;
-    }
-  }
-
-  async function startShareFlow(shareBtn) {
-    const canList =
-      window.native && typeof window.native.listScreenSources === "function";
-    const canArm =
-      window.native && typeof window.native.armScreenShareSync === "function";
-    if (!canList || !canArm) {
-      showScreenPicker([], null, { error: true });
-      return;
-    }
-    const flow = ++shareFlowId;
-    showScreenPicker([], null, { loading: true });
-    let sources = [];
-    try {
-      sources = await window.native.listScreenSources();
-    } catch {
-      if (flow !== shareFlowId) return;
-      showScreenPicker([], null, { error: true });
-      return;
-    }
-    if (flow !== shareFlowId) return;
-    showScreenPicker(sources, (idx) => {
-      if (!Number.isInteger(idx) || idx < 0) return;
-      const armed = armShare(idx);
-      if (!armed || !shareBtn) {
-        showScreenPicker([], null, { error: true });
-        return;
-      }
-      sharePassThrough = true;
-      try {
-        press(shareBtn);
-      } finally {
-        window.setTimeout(() => {
-          sharePassThrough = false;
-        }, 800);
-      }
-    });
-  }
-
-  function shareStartButton(from) {
-    if (!(from instanceof Element)) return null;
-    if (from.closest("#muchat-voice-dock, #muchat-screen-picker, #muchat-splash")) {
-      return null;
-    }
-    const btn = from.closest("button, [role='button']");
-    if (!btn) return null;
-    const label = (btn.textContent || "").replace(/\s+/g, " ").trim();
-    if (/join the voice channel|entrar no canal de voz|start the call|iniciar a chamada/i.test(label)) {
-      return null;
-    }
-    if (findIcon(btn, "stop_screen_share")) return null;
-    if (findIcon(btn, "screen_share")) return btn;
-    return null;
-  }
-
-  function listenScreenPicker() {
-    if (!window.native || typeof window.native.onScreenPicker !== "function") return;
-    window.native.onScreenPicker((sources) => {
-      showScreenPicker(sources, (idx) => {
-        if (window.native) window.native.screenPickerCallback(idx, false);
-      });
-    });
-  }
-  listenScreenPicker();
-
   function findJoinVoiceButton() {
     for (const el of document.querySelectorAll("button, [role='button']")) {
       const label = (el.textContent || "").replace(/\s+/g, " ").trim();
@@ -1157,20 +892,6 @@
   document.addEventListener(
     "click",
     (event) => {
-      if (!sharePassThrough && callActions()) {
-        const shareBtn = shareStartButton(event.target);
-        if (
-          shareBtn &&
-          window.native &&
-          typeof window.native.armScreenShareSync === "function"
-        ) {
-          event.preventDefault();
-          event.stopPropagation();
-          event.stopImmediatePropagation();
-          startShareFlow(shareBtn);
-          return;
-        }
-      }
       if (callActions()) return;
       let el = event.target instanceof Element ? event.target : null;
       let hit = false;

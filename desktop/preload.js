@@ -3,20 +3,6 @@
 const { contextBridge, ipcRenderer } = require("electron");
 const { version } = require("./package.json");
 
-let overlayScreenPicker = null;
-let appScreenPicker = null;
-
-ipcRenderer.on("screenPicker", (_event, sources) => {
-  const overlay = overlayScreenPicker;
-  const app = appScreenPicker;
-  appScreenPicker = null;
-  if (typeof overlay === "function") {
-    overlay(sources);
-    return;
-  }
-  if (typeof app === "function") app(sources);
-});
-
 contextBridge.exposeInMainWorld("native", {
   versions: {
     node: () => process.versions.node,
@@ -28,17 +14,12 @@ contextBridge.exposeInMainWorld("native", {
   maximise: () => ipcRenderer.send("maximise"),
   close: () => ipcRenderer.send("close"),
   onceScreenPicker: (onScreenPick) => {
-    appScreenPicker = onScreenPick;
-  },
-  onScreenPicker: (onScreenPick) => {
-    overlayScreenPicker = onScreenPick;
+    ipcRenderer.removeAllListeners("screenPicker");
+    ipcRenderer.once("screenPicker", (_event, sources) => onScreenPick(sources));
   },
   screenPickerCallback: (idx, audio) => {
     ipcRenderer.send("screenPickerCallback", idx, Boolean(audio));
   },
-  listScreenSources: () => ipcRenderer.invoke("listScreenSources"),
-  armScreenShare: (idx) => ipcRenderer.invoke("armScreenShare", idx),
-  armScreenShareSync: (idx) => ipcRenderer.sendSync("armScreenShareSync", idx),
   splashReady: () => ipcRenderer.send("splashReady"),
   onLoadProgress: (onProgress) => {
     ipcRenderer.on("loadProgress", (_event, payload) => {

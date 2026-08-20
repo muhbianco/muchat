@@ -109,6 +109,8 @@ services:
           memory: 256M
 
   web:
+    image: muchat-web:latest
+    pull_policy: never
     volumes:
       - ./brand/generated-index.html:/app/dist/index.html:ro
     command:

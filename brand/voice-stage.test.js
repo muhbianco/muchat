@@ -29,40 +29,28 @@ test("overlay de voz deixa a box cinza redimensionavel", () => {
   assert.match(js, /flex-shrink/);
   assert.match(css, /data-muchat-composer/);
   assert.match(js, /raiseStoatModals/);
-  assert.match(js, /10002/);
+  assert.match(js, /10050/);
   assert.match(js, /muchat-voice-dock/);
 });
 
-test("splash e picker de tela no overlay", () => {
+test("splash no overlay; share vai para o picker do Stoat", () => {
   assert.match(css, /#muchat-splash/);
+  assert.match(css, /#floating \.dialog_scrim/);
   assert.match(js, /muchat-splash/);
   assert.match(js, /splashReady/);
   assert.match(js, /MuchatNative/);
-  assert.match(js, /muchat-screen-picker/);
-  assert.match(js, /native\.onScreenPicker/);
-  assert.match(js, /listenScreenPicker\(\);/);
-  assert.match(js, /startShareFlow/);
-  assert.match(js, /sharePassThrough && callActions/);
   assert.match(js, /entrar no canal de voz/);
-  assert.match(js, /listScreenSources/);
-  assert.match(js, /armScreenShareSync/);
-  assert.match(js, /patchGetDisplayMedia/);
-  assert.match(js, /shareQuality/);
-  assert.match(js, /frameRate:\s*\{\s*ideal:\s*shareQuality\.frameRate/);
-  assert.match(js, /Carregando telas/);
-  assert.match(js, /Aplicativos/);
-  assert.match(js, /Telas/);
-  assert.match(js, /Go Live/);
-  assert.match(js, /data-quality/);
-  assert.match(js, /data-fps/);
   assert.match(js, /data-act="share"/);
-  assert.match(css, /muchat-screen-picker__status/);
-  assert.match(css, /muchat-screen-picker__tab/);
-  assert.match(css, /muchat-screen-picker__live/);
   assert.match(css, /muchat-splash-bar/);
   assert.match(js, /Carregando/);
   assert.match(js, /onLoadProgress/);
   assert.match(js, /startVoiceStageOnce/);
+  assert.doesNotMatch(js, /startShareFlow/);
+  assert.doesNotMatch(js, /listScreenSources/);
+  assert.doesNotMatch(js, /armScreenShareSync/);
+  assert.doesNotMatch(js, /patchGetDisplayMedia/);
+  assert.doesNotMatch(js, /native\.onScreenPicker/);
+  assert.doesNotMatch(css, /muchat-screen-picker__live/);
 });
 
 test("dock de voz no rodape da lista de canais", () => {

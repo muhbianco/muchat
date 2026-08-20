@@ -34,7 +34,7 @@ test("o pacote inclui preload e captura de tela", () => {
   assert.ok(pkg.build.files.includes("update.js"));
   assert.match(pkg.build.nsis.artifactName, /\$\{version\}/);
   assert.equal(pkg.build.nsis.include, "installer.nsh");
-  assert.equal(pkg.version, "1.0.17");
+  assert.equal(pkg.version, "1.0.18");
   assert.equal(pkg.dependencies["electron-updater"], "6.6.2");
   assert.equal(pkg.build.publish.provider, "generic");
   assert.match(pkg.build.publish.url, /chat\.muhbianco\.com\.br\/download/);
@@ -75,24 +75,26 @@ test("WGC fica ligado no desktop local e só desliga em RDP", () => {
   assert.match(main, /WebRtcAllowWgcScreenCapturer/);
 });
 
-test("picker de tela arma a fonte antes do getDisplayMedia", () => {
+test("picker de tela usa o IPC oficial do Stoat", () => {
   const capture = fs.readFileSync(path.join(__dirname, "capture.js"), "utf8");
   const map = fs.readFileSync(path.join(__dirname, "capture-map.js"), "utf8");
   const preload = fs.readFileSync(path.join(__dirname, "preload.js"), "utf8");
   const main = fs.readFileSync(path.join(__dirname, "main.js"), "utf8");
   assert.match(capture, /useSystemPicker:\s*false/);
   assert.doesNotMatch(capture, /Menu\.buildFromTemplate/);
-  assert.match(capture, /listScreenSources/);
-  assert.match(capture, /armScreenShare/);
-  assert.match(capture, /armScreenShareSync/);
-  assert.match(capture, /grantVideo\(\s*held/);
+  assert.doesNotMatch(capture, /listScreenSources/);
+  assert.doesNotMatch(capture, /armScreenShare/);
+  assert.match(capture, /removeAllListeners\("screenPickerCallback"\)/);
   assert.match(capture, /webContents\.send\(\s*"screenPicker"/);
   assert.match(capture, /screenPickerCallback/);
+  assert.match(capture, /loopback/);
   assert.doesNotMatch(capture, /2500/);
-  assert.doesNotMatch(capture, /loopback/);
   assert.doesNotMatch(map, /toDataURL/);
-  assert.match(preload, /listScreenSources/);
-  assert.match(preload, /armScreenShareSync/);
-  assert.match(preload, /sendSync/);
+  assert.match(preload, /onceScreenPicker/);
+  assert.match(preload, /removeAllListeners\("screenPicker"\)/);
+  assert.match(preload, /screenPickerCallback/);
+  assert.doesNotMatch(preload, /listScreenSources/);
+  assert.doesNotMatch(preload, /armScreenShare/);
+  assert.doesNotMatch(preload, /sendSync/);
   assert.match(main, /permission === "display-capture"/);
 });
