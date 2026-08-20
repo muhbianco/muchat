@@ -5,6 +5,7 @@ const assert = require("node:assert/strict");
 const fs = require("fs");
 const path = require("path");
 const { mapSources } = require("./capture-map");
+const { shouldDisableWgcCapturer } = require("./wgc");
 
 test("mapeia fontes do desktopCapturer para o picker do Stoat", () => {
   const mapped = mapSources([
@@ -28,11 +29,12 @@ test("o pacote inclui preload e captura de tela", () => {
   assert.ok(pkg.build.files.includes("preload.js"));
   assert.ok(pkg.build.files.includes("capture.js"));
   assert.ok(pkg.build.files.includes("capture-map.js"));
+  assert.ok(pkg.build.files.includes("wgc.js"));
   assert.ok(pkg.build.files.includes("splash.html"));
   assert.ok(pkg.build.files.includes("update.js"));
   assert.match(pkg.build.nsis.artifactName, /\$\{version\}/);
   assert.equal(pkg.build.nsis.include, "installer.nsh");
-  assert.equal(pkg.version, "1.0.16");
+  assert.equal(pkg.version, "1.0.17");
   assert.equal(pkg.dependencies["electron-updater"], "6.6.2");
   assert.equal(pkg.build.publish.provider, "generic");
   assert.match(pkg.build.publish.url, /chat\.muhbianco\.com\.br\/download/);
@@ -63,6 +65,16 @@ test("splash na mesma janela com barra de progresso, sem tela preta ao mostrar",
   assert.match(fs.readFileSync(path.join(__dirname, "installer.nsh"), "utf8"), /taskkill \/F \/IM Muchat\.exe/);
 });
 
+test("WGC fica ligado no desktop local e só desliga em RDP", () => {
+  assert.equal(shouldDisableWgcCapturer({ SESSIONNAME: "Console" }, "win32"), false);
+  assert.equal(shouldDisableWgcCapturer({}, "win32"), false);
+  assert.equal(shouldDisableWgcCapturer({ SESSIONNAME: "RDP-Tcp#5" }, "win32"), true);
+  assert.equal(shouldDisableWgcCapturer({ SESSIONNAME: "RDP-Tcp#5" }, "linux"), false);
+  const main = fs.readFileSync(path.join(__dirname, "main.js"), "utf8");
+  assert.match(main, /shouldDisableWgcCapturer/);
+  assert.match(main, /WebRtcAllowWgcScreenCapturer/);
+});
+
 test("picker de tela arma a fonte antes do getDisplayMedia", () => {
   const capture = fs.readFileSync(path.join(__dirname, "capture.js"), "utf8");
   const map = fs.readFileSync(path.join(__dirname, "capture-map.js"), "utf8");
@@ -72,11 +84,15 @@ test("picker de tela arma a fonte antes do getDisplayMedia", () => {
   assert.doesNotMatch(capture, /Menu\.buildFromTemplate/);
   assert.match(capture, /listScreenSources/);
   assert.match(capture, /armScreenShare/);
-  assert.match(capture, /grantVideo/);
+  assert.match(capture, /armScreenShareSync/);
+  assert.match(capture, /grantVideo\(\s*held/);
+  assert.match(capture, /webContents\.send\(\s*"screenPicker"/);
+  assert.match(capture, /screenPickerCallback/);
+  assert.doesNotMatch(capture, /2500/);
   assert.doesNotMatch(capture, /loopback/);
-  assert.match(main, /WebRtcAllowWgcScreenCapturer/);
   assert.doesNotMatch(map, /toDataURL/);
   assert.match(preload, /listScreenSources/);
-  assert.match(preload, /armScreenShare/);
+  assert.match(preload, /armScreenShareSync/);
+  assert.match(preload, /sendSync/);
   assert.match(main, /permission === "display-capture"/);
 });

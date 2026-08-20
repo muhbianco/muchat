@@ -1,7 +1,7 @@
 {
   "name": "muchat",
   "productName": "Muchat",
-  "version": "1.0.16",
+  "version": "1.0.17",
   "private": true,
   "description": "Muchat desktop",
   "main": "main.js",
@@ -29,6 +29,7 @@
       "lifecycle.js",
       "capture.js",
       "capture-map.js",
+      "wgc.js",
       "preload.js",
       "update.js",
       "splash.html",

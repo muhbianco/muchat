@@ -116,11 +116,23 @@
     /* never block the Stoat bundle */
   }
 
+  let shareQuality = { width: 1280, height: 720, frameRate: 30 };
+
   function patchGetDisplayMedia() {
     const devices = navigator.mediaDevices;
     if (!devices || !devices.getDisplayMedia) return;
     const orig = devices.getDisplayMedia.bind(devices);
-    devices.getDisplayMedia = () => orig({ video: true });
+    devices.getDisplayMedia = (constraints) => {
+      const audio = constraints && constraints.audio ? constraints.audio : false;
+      return orig({
+        audio,
+        video: {
+          width: { ideal: shareQuality.width },
+          height: { ideal: shareQuality.height },
+          frameRate: { ideal: shareQuality.frameRate },
+        },
+      });
+    };
   }
   try {
     patchGetDisplayMedia();
@@ -717,7 +729,11 @@
           press(actions.share && actions.share.btn);
           return;
         }
-        startShareFlow(actions.share && actions.share.btn);
+        if (window.native && typeof window.native.armScreenShareSync === "function") {
+          startShareFlow(actions.share && actions.share.btn);
+          return;
+        }
+        press(actions.share && actions.share.btn);
       }
     });
     document.body.appendChild(dock);
@@ -906,75 +922,150 @@
     const list = Array.isArray(sources) ? sources : [];
     const screens = list.filter((s) => s.isFullScreen);
     const windows = list.filter((s) => !s.isFullScreen);
+    let tab = windows.length || !screens.length ? "apps" : "screens";
+    let selectedIdx = null;
     const modal = document.createElement("div");
     modal.id = "muchat-screen-picker";
-    modal.addEventListener("click", (event) => {
-      if (event.target === modal) pickScreen(-1);
-    });
 
-    function section(title, items) {
-      if (!items.length) return "";
+    function applyQualityFromDom() {
+      const quality = modal.querySelector("[data-quality]");
+      const fps = modal.querySelector("[data-fps]");
+      if (quality && quality.value === "1080") {
+        shareQuality.width = 1920;
+        shareQuality.height = 1080;
+      } else {
+        shareQuality.width = 1280;
+        shareQuality.height = 720;
+      }
+      if (fps) shareQuality.frameRate = Number(fps.value) || 30;
+    }
+
+    function escapeName(value) {
+      return String(value || "Fonte")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;");
+    }
+
+    function itemsHtml(items, placeholder) {
+      if (!items.length) {
+        return '<p class="muchat-screen-picker__status">Nada para mostrar nesta aba.</p>';
+      }
       return (
-        `<h3>${title}</h3><div class="muchat-screen-picker__grid">` +
+        '<div class="muchat-screen-picker__grid">' +
         items
           .map((source) => {
-            const img = source.thumbnail || source.image;
-            const media = img
-              ? `<img src="${img}" alt="">`
-              : `<div class="muchat-screen-picker__ph">Janela</div>`;
-            const name = String(source.name || "Fonte")
-              .replace(/&/g, "&amp;")
-              .replace(/</g, "&lt;");
-            return `<button type="button" class="muchat-screen-picker__item" data-idx="${source.idx}">${media}<span>${name}</span></button>`;
+            const on = source.idx === selectedIdx ? " is-on" : "";
+            return (
+              `<button type="button" class="muchat-screen-picker__item${on}" data-idx="${source.idx}">` +
+              `<div class="muchat-screen-picker__ph">${placeholder}</div>` +
+              `<span>${escapeName(source.name)}</span></button>`
+            );
           })
           .join("") +
         "</div>"
       );
     }
 
-    let body = "";
-    if (loading) {
-      body = '<p class="muchat-screen-picker__status">Carregando telas…</p>';
-    } else if (error || (!screens.length && !windows.length)) {
-      body = '<p class="muchat-screen-picker__status">Não deu para listar as telas. Fecha este aviso e tenta de novo.</p>';
-    } else {
-      body = section("Telas", screens) + section("Janelas", windows);
+    function render() {
+      let body = "";
+      const canPick = !loading && !error && (screens.length > 0 || windows.length > 0);
+      if (loading) {
+        body = '<p class="muchat-screen-picker__status">Carregando telas…</p>';
+      } else if (error || !canPick) {
+        body =
+          '<p class="muchat-screen-picker__status">Não deu para listar as telas. Fecha este aviso e tenta de novo.</p>';
+      } else {
+        const appsOn = tab === "apps" ? " is-on" : "";
+        const screensOn = tab === "screens" ? " is-on" : "";
+        body =
+          '<div class="muchat-screen-picker__tabs">' +
+          `<button type="button" class="muchat-screen-picker__tab${appsOn}" data-tab="apps">Aplicativos</button>` +
+          `<button type="button" class="muchat-screen-picker__tab${screensOn}" data-tab="screens">Telas</button>` +
+          "</div>" +
+          (tab === "apps" ? itemsHtml(windows, "Janela") : itemsHtml(screens, "Tela"));
+      }
+      const quality = shareQuality.height >= 1080 ? "1080" : "720";
+      const fps = String(shareQuality.frameRate || 30);
+      const liveOff =
+        !canPick || !Number.isInteger(selectedIdx) || selectedIdx < 0 ? " disabled" : "";
+      modal.innerHTML =
+        '<div class="muchat-screen-picker__panel">' +
+        "<h2>Compartilhar tela</h2>" +
+        body +
+        '<div class="muchat-screen-picker__foot">' +
+        '<div class="muchat-screen-picker__quality">' +
+        `<label>Quality <select data-quality><option value="720"${quality === "720" ? " selected" : ""}>720p</option>` +
+        `<option value="1080"${quality === "1080" ? " selected" : ""}>1080p</option></select></label>` +
+        `<label>FPS <select data-fps><option value="15"${fps === "15" ? " selected" : ""}>15</option>` +
+        `<option value="30"${fps === "30" ? " selected" : ""}>30</option>` +
+        `<option value="60"${fps === "60" ? " selected" : ""}>60</option></select></label>` +
+        "</div>" +
+        '<div class="muchat-screen-picker__actions">' +
+        '<button type="button" class="muchat-screen-picker__cancel">Cancelar</button>' +
+        `<button type="button" class="muchat-screen-picker__live"${liveOff}>Go Live</button>` +
+        "</div></div></div>";
     }
 
-    modal.innerHTML =
-      '<div class="muchat-screen-picker__panel">' +
-      "<h2>Compartilhar tela</h2>" +
-      body +
-      '<div class="muchat-screen-picker__foot">' +
-      '<button type="button" class="muchat-screen-picker__cancel">Cancelar</button>' +
-      "</div></div>";
+    modal.addEventListener("click", (event) => {
+      if (event.target === modal) {
+        pickScreen(-1);
+        return;
+      }
+      const tabBtn = event.target.closest("[data-tab]");
+      if (tabBtn) {
+        event.preventDefault();
+        tab = tabBtn.getAttribute("data-tab") === "screens" ? "screens" : "apps";
+        render();
+        return;
+      }
+      const item = event.target.closest("[data-idx]");
+      if (item) {
+        event.preventDefault();
+        selectedIdx = Number(item.getAttribute("data-idx"));
+        render();
+        return;
+      }
+      if (event.target.closest(".muchat-screen-picker__cancel")) {
+        event.preventDefault();
+        pickScreen(-1);
+        return;
+      }
+      if (event.target.closest(".muchat-screen-picker__live")) {
+        event.preventDefault();
+        if (!Number.isInteger(selectedIdx) || selectedIdx < 0) return;
+        applyQualityFromDom();
+        pickScreen(selectedIdx);
+      }
+    });
+    modal.addEventListener("change", (event) => {
+      if (event.target.closest("[data-quality], [data-fps]")) applyQualityFromDom();
+    });
 
     pickerKeyHandler = (event) => {
       if (event.key !== "Escape") return;
       pickScreen(-1);
     };
     document.addEventListener("keydown", pickerKeyHandler);
-
-    modal.querySelector(".muchat-screen-picker__panel").addEventListener("click", (event) => {
-      const item = event.target.closest("[data-idx]");
-      if (item) {
-        event.preventDefault();
-        pickScreen(Number(item.getAttribute("data-idx")));
-        return;
-      }
-      if (event.target.closest(".muchat-screen-picker__cancel")) {
-        event.preventDefault();
-        pickScreen(-1);
-      }
-    });
+    render();
     document.body.appendChild(modal);
+  }
+
+  function armShare(idx) {
+    if (!window.native || typeof window.native.armScreenShareSync !== "function") {
+      return false;
+    }
+    try {
+      return window.native.armScreenShareSync(idx) === true;
+    } catch {
+      return false;
+    }
   }
 
   async function startShareFlow(shareBtn) {
     const canList =
       window.native && typeof window.native.listScreenSources === "function";
     const canArm =
-      window.native && typeof window.native.armScreenShare === "function";
+      window.native && typeof window.native.armScreenShareSync === "function";
     if (!canList || !canArm) {
       showScreenPicker([], null, { error: true });
       return;
@@ -990,14 +1081,9 @@
       return;
     }
     if (flow !== shareFlowId) return;
-    showScreenPicker(sources, async (idx) => {
+    showScreenPicker(sources, (idx) => {
       if (!Number.isInteger(idx) || idx < 0) return;
-      let armed = false;
-      try {
-        armed = await window.native.armScreenShare(idx);
-      } catch {
-        armed = false;
-      }
+      const armed = armShare(idx);
       if (!armed || !shareBtn) {
         showScreenPicker([], null, { error: true });
         return;
@@ -1073,7 +1159,11 @@
     (event) => {
       if (!sharePassThrough && callActions()) {
         const shareBtn = shareStartButton(event.target);
-        if (shareBtn) {
+        if (
+          shareBtn &&
+          window.native &&
+          typeof window.native.armScreenShareSync === "function"
+        ) {
           event.preventDefault();
           event.stopPropagation();
           event.stopImmediatePropagation();

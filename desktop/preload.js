@@ -38,6 +38,7 @@ contextBridge.exposeInMainWorld("native", {
   },
   listScreenSources: () => ipcRenderer.invoke("listScreenSources"),
   armScreenShare: (idx) => ipcRenderer.invoke("armScreenShare", idx),
+  armScreenShareSync: (idx) => ipcRenderer.sendSync("armScreenShareSync", idx),
   splashReady: () => ipcRenderer.send("splashReady"),
   onLoadProgress: (onProgress) => {
     ipcRenderer.on("loadProgress", (_event, payload) => {
