@@ -31,14 +31,14 @@ function sourceOpts(types) {
 async function getShareSources() {
   const screens = await withTimeout(
     desktopCapturer.getSources(sourceOpts(["screen"])),
-    3000,
+    2500,
     "capturer-timeout"
   );
   let windows = [];
   try {
     windows = await withTimeout(
       desktopCapturer.getSources(sourceOpts(["window"])),
-      3000,
+      2500,
       "capturer-timeout"
     );
   } catch {
@@ -59,6 +59,27 @@ function grantVideo(source, callback, audio) {
   }
 }
 
+function waitForPick(sources, callback, request, getWindow) {
+  const win = getWindow();
+  if (!win || win.isDestroyed()) {
+    denyDisplayMedia(callback);
+    return;
+  }
+  ipcMain.removeAllListeners("screenPickerCallback");
+  ipcMain.once("screenPickerCallback", (_event, idx, audio) => {
+    if (!Number.isInteger(idx) || idx < 0 || idx >= sources.length) {
+      denyDisplayMedia(callback);
+      return;
+    }
+    grantVideo(
+      sources[idx],
+      callback,
+      Boolean(audio) && Boolean(request.audioRequested)
+    );
+  });
+  win.webContents.send("screenPicker", mapSources(sources));
+}
+
 function setupScreenShare(getWindow) {
   ipcMain.removeAllListeners("screenPickerCallback");
   ipcMain.removeAllListeners("minimise");
@@ -69,28 +90,15 @@ function setupScreenShare(getWindow) {
     (request, callback) => {
       getShareSources()
         .then((sources) => {
-          const win = getWindow();
-          if (!win || win.isDestroyed()) {
-            denyDisplayMedia(callback);
+          if (!sources.length) {
+            waitForPick([], callback, request, getWindow);
             return;
           }
-          ipcMain.removeAllListeners("screenPickerCallback");
-          ipcMain.once("screenPickerCallback", (_event, idx, audio) => {
-            if (!Number.isInteger(idx) || idx < 0 || idx >= sources.length) {
-              denyDisplayMedia(callback);
-              return;
-            }
-            grantVideo(
-              sources[idx],
-              callback,
-              Boolean(audio) && Boolean(request.audioRequested)
-            );
-          });
-          win.webContents.send("screenPicker", mapSources(sources));
+          waitForPick(sources, callback, request, getWindow);
         })
-        .catch(() => denyDisplayMedia(callback));
+        .catch(() => waitForPick([], callback, request, getWindow));
     },
-    { useSystemPicker: false }
+    { useSystemPicker: true }
   );
 
   ipcMain.on("minimise", () => {

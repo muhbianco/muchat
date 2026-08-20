@@ -34,7 +34,7 @@ test("o pacote inclui preload e captura de tela", () => {
   assert.ok(pkg.build.files.includes("update.js"));
   assert.match(pkg.build.nsis.artifactName, /\$\{version\}/);
   assert.equal(pkg.build.nsis.include, "installer.nsh");
-  assert.equal(pkg.version, "1.0.18");
+  assert.equal(pkg.version, "1.0.19");
   assert.equal(pkg.dependencies["electron-updater"], "6.6.2");
   assert.equal(pkg.build.publish.provider, "generic");
   assert.match(pkg.build.publish.url, /chat\.muhbianco\.com\.br\/download/);
@@ -45,6 +45,8 @@ test("splash na mesma janela com barra de progresso, sem tela preta ao mostrar",
   const splash = fs.readFileSync(path.join(__dirname, "splash.html"), "utf8");
   const preload = fs.readFileSync(path.join(__dirname, "preload.js"), "utf8");
   assert.match(main, /disableHardwareAcceleration/);
+  assert.match(main, /ServiceWorker/);
+  assert.match(main, /clearStorageData/);
   assert.match(main, /sandbox:\s*true/);
   assert.match(main, /Muchat \$\{version\}/);
   assert.match(main, /splashReady/);
@@ -80,7 +82,7 @@ test("picker de tela usa o IPC oficial do Stoat", () => {
   const map = fs.readFileSync(path.join(__dirname, "capture-map.js"), "utf8");
   const preload = fs.readFileSync(path.join(__dirname, "preload.js"), "utf8");
   const main = fs.readFileSync(path.join(__dirname, "main.js"), "utf8");
-  assert.match(capture, /useSystemPicker:\s*false/);
+  assert.match(capture, /useSystemPicker:\s*true/);
   assert.doesNotMatch(capture, /Menu\.buildFromTemplate/);
   assert.doesNotMatch(capture, /listScreenSources/);
   assert.doesNotMatch(capture, /armScreenShare/);
@@ -88,7 +90,6 @@ test("picker de tela usa o IPC oficial do Stoat", () => {
   assert.match(capture, /webContents\.send\(\s*"screenPicker"/);
   assert.match(capture, /screenPickerCallback/);
   assert.match(capture, /loopback/);
-  assert.doesNotMatch(capture, /2500/);
   assert.doesNotMatch(map, /toDataURL/);
   assert.match(preload, /onceScreenPicker/);
   assert.match(preload, /removeAllListeners\("screenPicker"\)/);

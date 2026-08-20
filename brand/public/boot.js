@@ -686,7 +686,7 @@
 
   function startScreenShare() {
     if (window.native && !nativeCanPickScreen()) {
-      showMuchatNotice("Este Muchat está velho. Fecha o app na bandeja e instala a 1.0.18.");
+      showMuchatNotice("Este Muchat está velho. Fecha o app na bandeja e instala a 1.0.19.");
       return;
     }
     if (window.MuchatVoice && typeof window.MuchatVoice.toggleScreenshare === "function") {

@@ -13,13 +13,15 @@ app.setName("Muchat");
 if (process.platform === "win32") {
   app.setAppUserModelId(APP_ID);
   app.disableHardwareAcceleration();
-  if (shouldDisableWgcCapturer()) {
-    app.commandLine.appendSwitch(
-      "disable-features",
-      "WebRtcAllowWgcScreenCapturer,WebRtcAllowWgcWindowCapturer"
-    );
-  }
 }
+const disabledFeatures = ["ServiceWorker"];
+if (shouldDisableWgcCapturer()) {
+  disabledFeatures.push(
+    "WebRtcAllowWgcScreenCapturer",
+    "WebRtcAllowWgcWindowCapturer"
+  );
+}
+app.commandLine.appendSwitch("disable-features", disabledFeatures.join(","));
 app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
 
 let mainWindow = null;
@@ -87,6 +89,22 @@ function hideToTray() {
   mainWindow.setSkipTaskbar(true);
 }
 
+async function loadChat(win) {
+  loadPhase = "chat";
+  setLoadProgress(30, "Carregando…");
+  try {
+    await win.webContents.session.clearCache();
+    await win.webContents.session.clearStorageData({
+      origin: APP_ORIGIN,
+      storages: ["serviceworkers", "cachestorage"],
+    });
+  } catch {
+    /* keep going even if Chromium cache wipe fails */
+  }
+  if (win.isDestroyed()) return;
+  win.loadURL(`${APP_ORIGIN}/`);
+}
+
 function quitMuchat() {
   isQuitting = true;
   app.quit();
@@ -139,9 +157,7 @@ function createWindow() {
       }).then((result) => {
         clearLoadProgress();
         if (win.isDestroyed() || result === "relaunch") return;
-        loadPhase = "chat";
-        setLoadProgress(30, "Carregando…");
-        win.loadURL(`${APP_ORIGIN}/`);
+        loadChat(win);
       });
       return;
     }
