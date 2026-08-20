@@ -1,7 +1,28 @@
 "use strict";
 
-const APP_ORIGIN = "https://chat.muhbianco.com.br";
+const PROD_ORIGIN = "https://chat.muhbianco.com.br";
 const APP_ID = "br.com.muhbianco.muchat";
+
+/**
+ * Normalise an origin override, e.g. MUCHAT_ORIGIN=http://localhost:5173.
+ * Returns "" when the value is missing or not a usable origin.
+ */
+function normaliseOrigin(value) {
+  if (!value || typeof value !== "string") return "";
+  try {
+    const url = new URL(value.trim());
+    // "localhost:5173" parses as the scheme "localhost:", whose origin is the
+    // literal string "null"; only http(s) yields a usable origin.
+    if (url.protocol !== "http:" && url.protocol !== "https:") return "";
+    return url.origin;
+  } catch {
+    return "";
+  }
+}
+
+const DEV_ORIGIN = normaliseOrigin(process.env.MUCHAT_ORIGIN);
+const APP_ORIGIN = DEV_ORIGIN || PROD_ORIGIN;
+const IS_DEV_ORIGIN = APP_ORIGIN !== PROD_ORIGIN;
 
 const ALLOWED_PERMISSIONS = new Set([
   "notifications",
@@ -36,7 +57,10 @@ function isAllowedPermission(permission, requestingOrigin) {
 module.exports = {
   APP_ID,
   APP_ORIGIN,
+  PROD_ORIGIN,
+  IS_DEV_ORIGIN,
   ALLOWED_PERMISSIONS,
+  normaliseOrigin,
   isAppOrigin,
   isAllowedPermission,
 };

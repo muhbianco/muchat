@@ -6,18 +6,25 @@ const { autoUpdater } = require("electron-updater");
 const FEED_URL = "https://chat.muhbianco.com.br/download/";
 const CHECK_EVERY_MS = 6 * 60 * 60 * 1000;
 
+const IDLE = { state: "idle" };
+
 function setupAutoUpdate({ send, onWillQuit }) {
   let downloaded = false;
   let latestVersion = "";
   let checking = false;
   let installing = false;
+  // The renderer subscribes only once the SPA has mounted, which can happen
+  // after the first check already fired. Keeping the last payload lets a late
+  // subscriber ask for the current state instead of missing the event.
+  let lastPayload = IDLE;
 
   function emit(state, extra) {
-    send({
+    lastPayload = {
       state,
       version: latestVersion,
       ...(extra || {}),
-    });
+    };
+    send(lastPayload);
   }
 
   function configure() {
@@ -61,14 +68,19 @@ function setupAutoUpdate({ send, onWillQuit }) {
     }
   }
 
+  /** Current update state, for renderers that subscribed after the fact. */
+  function state() {
+    return lastPayload;
+  }
+
   if (!app.isPackaged) {
-    return { check() {}, install() {} };
+    return { check() {}, install() {}, state: () => IDLE };
   }
 
   try {
     configure();
   } catch {
-    return { check() {}, install() {} };
+    return { check() {}, install() {}, state: () => IDLE };
   }
 
   autoUpdater.on("update-available", (info) => {
@@ -77,7 +89,7 @@ function setupAutoUpdate({ send, onWillQuit }) {
   });
   autoUpdater.on("update-not-available", () => {
     downloaded = false;
-    emit("none");
+    emit("idle");
   });
   autoUpdater.on("download-progress", (progress) => {
     emit("downloading", {
@@ -93,7 +105,7 @@ function setupAutoUpdate({ send, onWillQuit }) {
 
   setInterval(() => check(), CHECK_EVERY_MS);
 
-  return { check, install };
+  return { check, install, state };
 }
 
 module.exports = { setupAutoUpdate, FEED_URL };

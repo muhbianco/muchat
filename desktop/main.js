@@ -5,7 +5,13 @@ const path = require("path");
 const { version } = require("./package.json");
 const { setupScreenShare } = require("./capture");
 const { setupAutoUpdate } = require("./update");
-const { APP_ID, APP_ORIGIN, isAppOrigin, isAllowedPermission } = require("./permissions");
+const {
+  APP_ID,
+  APP_ORIGIN,
+  IS_DEV_ORIGIN,
+  isAppOrigin,
+  isAllowedPermission,
+} = require("./permissions");
 const { shouldHideToTray } = require("./lifecycle");
 const { shouldDisableWgcCapturer } = require("./wgc");
 
@@ -93,14 +99,18 @@ function hideToTray() {
 async function loadChat(win) {
   loadPhase = "chat";
   setLoadProgress(30, "Carregando…");
-  try {
-    await win.webContents.session.clearCache();
-    await win.webContents.session.clearStorageData({
-      origin: APP_ORIGIN,
-      storages: ["serviceworkers", "cachestorage"],
-    });
-  } catch {
-    /* keep going even if Chromium cache wipe fails */
+  // A dev server already busts its own caches through HMR, and wiping storage on
+  // every reload would log the developer out on each restart.
+  if (!IS_DEV_ORIGIN) {
+    try {
+      await win.webContents.session.clearCache();
+      await win.webContents.session.clearStorageData({
+        origin: APP_ORIGIN,
+        storages: ["serviceworkers", "cachestorage"],
+      });
+    } catch {
+      /* keep going even if Chromium cache wipe fails */
+    }
   }
   if (win.isDestroyed()) return;
   win.loadURL(`${APP_ORIGIN}/`);
@@ -133,7 +143,7 @@ function createWindow() {
     minWidth: 800,
     minHeight: 600,
     backgroundColor: "#141210",
-    title: `Muchat ${version}`,
+    title: IS_DEV_ORIGIN ? `Muchat ${version} — dev` : `Muchat ${version}`,
     icon: iconPath(),
     autoHideMenuBar: true,
     show: true,
@@ -142,6 +152,7 @@ function createWindow() {
       contextIsolation: true,
       sandbox: true,
       backgroundThrottling: false,
+      additionalArguments: [`--muchat-version=${version}`],
     },
   });
 
@@ -158,6 +169,7 @@ function createWindow() {
     if (loadPhase === "chat") {
       clearLoadProgress();
       paintVisibleWindow(win);
+      if (IS_DEV_ORIGIN) win.webContents.openDevTools({ mode: "right" });
       if (appUpdater) appUpdater.check();
     }
   });
@@ -255,6 +267,10 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.on("installAppUpdate", () => {
       if (appUpdater) appUpdater.install();
     });
+    ipcMain.removeHandler("updateState");
+    ipcMain.handle("updateState", () =>
+      appUpdater ? appUpdater.state() : { state: "idle" },
+    );
     ipcMain.on("splashReady", () => {
       setLoadProgress(100);
       clearLoadProgress();

@@ -24,12 +24,8 @@
 		file_server
 	}
 
-	route /manifest.webmanifest {
-		header Content-Type application/manifest+json
-		rewrite * /manifest.webmanifest
-		root * /muchat-public
-		file_server
-	}
+	# The PWA manifest now ships with the for-web build, so it must not be
+	# shadowed by a hand-maintained copy here.
 
 	route /.well-known/stoat {
 		uri strip_prefix /.well-known/stoat

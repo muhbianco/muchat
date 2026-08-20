@@ -15,7 +15,10 @@ https://github.com/stoatchat/self-hosted na hora do bootstrap.
 
 ## Marca e download
 
-- PWA/título: Muchat (`brand/`).
+- PWA, título, splash, sons, dock de voz, picker de tela e banner de update
+  vivem no fork `muhbianco/for-web`, não neste overlay. Não há mais `boot.js`
+  nem patch de `index.html`: a imagem `muchat-web:latest` já sai pronta.
+- `brand/public/` serve só assets estáticos (`/download`, ícones, sons-fonte).
 - Windows: `https://chat.muhbianco.com.br/download` (`Muchat-Setup-<versão>.exe`)
 - Android: o mesmo `/download` (`Muchat-<versão>.apk`)
 
@@ -34,6 +37,34 @@ Na VPS ainda vale:
 ```bash
 bash /usr/src/muchat/scripts/create-invite.sh
 ```
+
+## Dev local (fork + .exe sem deploy)
+
+O shell aponta pro dev server do fork via `MUCHAT_ORIGIN`. Com override ativo ele
+abre o DevTools e não limpa cache/storage, então a sessão sobrevive aos restarts.
+
+No fork (`for-web`), uma vez:
+
+```bash
+git submodule update --init packages/stoat.js packages/solid-livekit-components
+pnpm install
+pnpm --filter client exec lingui compile --typescript
+pnpm --filter client exec node scripts/copyAssets.mjs
+pnpm --filter client exec panda codegen
+```
+
+Depois, a cada sessão:
+
+```bash
+# terminal 1 — dev server do fork contra a API de produção
+VITE_HOST=chat.muhbianco.com.br pnpm --filter client exec vite dev
+
+# terminal 2 — o .exe apontado no dev server
+cd muchat/desktop && npm run dev
+```
+
+`VITE_HOST` define o `DEFAULT_HOST` do client, então o login e o LiveKit são os
+de produção — conta real, call real, sem subir backend local.
 
 ## VPS
 

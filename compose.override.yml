@@ -108,15 +108,11 @@ services:
           cpus: "0.25"
           memory: 256M
 
+  # Branding lives in the for-web fork itself, so the image ships the final
+  # index.html and needs no overlay mount or custom command.
   web:
     image: muchat-web:latest
     pull_policy: never
-    volumes:
-      - ./brand/generated-index.html:/app/dist/index.html:ro
-    command:
-      - sh
-      - -c
-      - node inject.js && cp /app/dist/index.html /app/dist_injected/index.html && exec ./node_modules/.bin/sirv dist_injected --port 5000 --cors --single --host
     deploy:
       resources:
         limits:

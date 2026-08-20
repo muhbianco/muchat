@@ -17,3 +17,14 @@ test("feed de update é o /download do chat, sem instalar sozinho no splash", ()
   assert.match(src, /onWillQuit/);
   assert.doesNotMatch(src, /Atualizando/);
 });
+
+test("o último estado fica guardado para quem assinar depois", () => {
+  const src = fs.readFileSync(path.join(__dirname, "update.js"), "utf8");
+  const main = fs.readFileSync(path.join(__dirname, "main.js"), "utf8");
+  const preload = fs.readFileSync(path.join(__dirname, "preload.js"), "utf8");
+  assert.match(src, /lastPayload/);
+  assert.match(src, /function state\(\)/);
+  assert.match(src, /return \{ check, install, state \}/);
+  assert.match(main, /ipcMain\.handle\("updateState"/);
+  assert.match(preload, /getUpdateState/);
+});

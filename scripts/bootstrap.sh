@@ -74,17 +74,4 @@ if "udp_port:" not in t:
 print("patched Revolt.toml and livekit.yml")
 PY
 
-WEB_IMAGE="muchat-web:latest"
-if ! command -v docker >/dev/null || ! docker image inspect "${WEB_IMAGE}" >/dev/null 2>&1; then
-  WEB_IMAGE="$(awk '/for-web/ {print $2; exit}' compose.yml || true)"
-fi
-if [[ -n "${WEB_IMAGE}" ]] && command -v docker >/dev/null && docker image inspect "${WEB_IMAGE}" >/dev/null 2>&1; then
-  tmp="$(mktemp)"
-  if docker run --rm --entrypoint cat "${WEB_IMAGE}" /app/dist_injected/index.html > "${tmp}" 2>/dev/null \
-    || docker run --rm --entrypoint cat "${WEB_IMAGE}" /app/dist/index.html > "${tmp}" 2>/dev/null; then
-    python3 "$MUCHAT_DIR/brand/patch_index.py" "${tmp}" "$STOAT_DIR/brand/generated-index.html"
-  fi
-  rm -f "${tmp}"
-fi
-
 echo "overlay pronto em $STOAT_DIR"

@@ -1,7 +1,20 @@
 "use strict";
 
 const { contextBridge, ipcRenderer } = require("electron");
-const { version } = require("./package.json");
+
+// Sandboxed preloads only get a polyfilled `require` that resolves `electron`,
+// `events`, `timers` and `url`. A relative require throws before
+// exposeInMainWorld runs and leaves window.native undefined, so the version
+// arrives through additionalArguments instead of package.json.
+const VERSION_FLAG = "--muchat-version=";
+
+/** Desktop version injected by the main process into the renderer argv. */
+function desktopVersion() {
+  const flag = process.argv.find((arg) => arg.startsWith(VERSION_FLAG));
+  return flag ? flag.slice(VERSION_FLAG.length) : "";
+}
+
+const version = desktopVersion();
 
 contextBridge.exposeInMainWorld("native", {
   versions: {
@@ -13,13 +26,14 @@ contextBridge.exposeInMainWorld("native", {
   minimise: () => ipcRenderer.send("minimise"),
   maximise: () => ipcRenderer.send("maximise"),
   close: () => ipcRenderer.send("close"),
-  onceScreenPicker: (onScreenPick) => {
-    ipcRenderer.removeAllListeners("screenPicker");
-    ipcRenderer.once("screenPicker", (_event, sources) => onScreenPick(sources));
-  },
-  screenPickerCallback: (idx, audio) => {
-    ipcRenderer.send("screenPickerCallback", idx, Boolean(audio));
-  },
+
+  // Screen share is arm-then-capture: the renderer lists sources, shows its own
+  // picker, arms the chosen source and only then calls getDisplayMedia, which
+  // the main process answers synchronously. Nothing blocks on a pending capture.
+  listScreenSources: () => ipcRenderer.invoke("screenSources"),
+  armScreenShare: (sourceId, audio) =>
+    ipcRenderer.invoke("armScreenShare", sourceId, Boolean(audio)),
+
   splashReady: () => ipcRenderer.send("splashReady"),
   onLoadProgress: (onProgress) => {
     ipcRenderer.on("loadProgress", (_event, payload) => {
@@ -33,6 +47,7 @@ contextBridge.exposeInMainWorld("native", {
   onAppUpdate: (onUpdate) => {
     ipcRenderer.on("appUpdate", (_event, payload) => onUpdate(payload));
   },
+  getUpdateState: () => ipcRenderer.invoke("updateState"),
   installAppUpdate: () => ipcRenderer.send("installAppUpdate"),
   isWayland: () => false,
 });
