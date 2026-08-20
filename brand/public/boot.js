@@ -645,8 +645,56 @@
   }
 
   function press(btn) {
-    if (!btn || btn.disabled) return;
-    btn.click();
+    if (!btn) return;
+    if (btn.disabled || btn.getAttribute("aria-disabled") === "true") return;
+    const box = btn.getBoundingClientRect();
+    const x = box.left + box.width / 2;
+    const y = box.top + box.height / 2;
+    const base = {
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+      view: window,
+      clientX: x,
+      clientY: y,
+      pointerId: 1,
+      pointerType: "mouse",
+      isPrimary: true,
+    };
+    btn.dispatchEvent(new PointerEvent("pointerdown", { ...base, buttons: 1 }));
+    btn.dispatchEvent(new PointerEvent("pointerup", { ...base, buttons: 0 }));
+  }
+
+  function nativeCanPickScreen() {
+    return Boolean(window.native && typeof window.native.onceScreenPicker === "function");
+  }
+
+  function showMuchatNotice(text) {
+    let el = document.getElementById("muchat-notice");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "muchat-notice";
+      document.body.appendChild(el);
+    }
+    el.textContent = text;
+    el.hidden = false;
+    window.clearTimeout(showMuchatNotice._t);
+    showMuchatNotice._t = window.setTimeout(() => {
+      el.hidden = true;
+    }, 8000);
+  }
+
+  function startScreenShare() {
+    if (window.native && !nativeCanPickScreen()) {
+      showMuchatNotice("Este Muchat está velho. Fecha o app na bandeja e instala a 1.0.18.");
+      return;
+    }
+    if (window.MuchatVoice && typeof window.MuchatVoice.toggleScreenshare === "function") {
+      window.MuchatVoice.toggleScreenshare();
+      return;
+    }
+    const actions = callActions();
+    press(actions && actions.share && actions.share.btn);
   }
 
   function findChannelSidebar() {
@@ -700,9 +748,7 @@
         press(actions.deafen && actions.deafen.btn);
       }
       if (btn.getAttribute("data-act") === "hangup") press(actions.hangup);
-      if (btn.getAttribute("data-act") === "share") {
-        press(actions.share && actions.share.btn);
-      }
+      if (btn.getAttribute("data-act") === "share") startScreenShare();
     });
     document.body.appendChild(dock);
     return dock;

@@ -111,6 +111,26 @@ html.muchat-voice-stage [data-muchat-composer] {
   animation: muchat-splash-load 1.2s ease-in-out infinite;
 }
 
+#muchat-notice {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 10060;
+  transform: translateX(-50%);
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: #1c1a17;
+  color: #f3efe6;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+#muchat-notice[hidden] {
+  display: none !important;
+}
+
 .muchat-splash-label {
   margin: 0;
   color: #8a8378;

@@ -36,11 +36,16 @@ test("overlay de voz deixa a box cinza redimensionavel", () => {
 test("splash no overlay; share vai para o picker do Stoat", () => {
   assert.match(css, /#muchat-splash/);
   assert.match(css, /#floating \.dialog_scrim/);
+  assert.match(css, /#muchat-notice/);
   assert.match(js, /muchat-splash/);
   assert.match(js, /splashReady/);
   assert.match(js, /MuchatNative/);
   assert.match(js, /entrar no canal de voz/);
   assert.match(js, /data-act="share"/);
+  assert.match(js, /MuchatVoice/);
+  assert.match(js, /startScreenShare/);
+  assert.match(js, /onceScreenPicker/);
+  assert.match(js, /PointerEvent/);
   assert.match(css, /muchat-splash-bar/);
   assert.match(js, /Carregando/);
   assert.match(js, /onLoadProgress/);
