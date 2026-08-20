@@ -49,7 +49,14 @@ test("splash no overlay; share vai para o picker do Stoat", () => {
   assert.match(js, /pointerdown/);
   assert.match(js, /stopImmediatePropagation/);
   assert.match(css, /muchat-splash-bar/);
+  assert.match(css, /muchat-splash-version/);
+  assert.match(css, /#muchat-update-bar/);
   assert.match(js, /Carregando/);
+  assert.match(js, /muchat-splash-version/);
+  assert.match(js, /desktopVersion/);
+  assert.match(js, /muchat-update-bar/);
+  assert.match(js, /onAppUpdate/);
+  assert.match(js, /installAppUpdate/);
   assert.match(js, /onLoadProgress/);
   assert.match(js, /startVoiceStageOnce/);
   assert.doesNotMatch(js, /startShareFlow/);

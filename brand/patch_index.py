@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
-HEAD = """  <title>Muchat</title>
+BOOT_V = "26"
+HEAD = f"""  <title>Muchat</title>
   <meta name="theme-color" content="#141210">
   <link rel="icon" href="/muchat-brand/favicon.svg">
-  <link rel="stylesheet" href="/muchat-brand/boot.css?v=25">
-  <script src="/muchat-brand/boot.js?v=25" defer></script>
+  <link rel="stylesheet" href="/muchat-brand/boot.css?v={BOOT_V}">
+  <script src="/muchat-brand/boot.js?v={BOOT_V}" defer></script>
 """
 
 
@@ -17,16 +19,8 @@ def patch(html: str) -> str:
     html = html.replace("<title>Stoat</title>", "<title>Muchat</title>")
     html = html.replace('content="#000"', 'content="#141210"')
     if "/muchat-brand/boot.js" in html:
-        html = html.replace("boot.css?v=20", "boot.css?v=25")
-        html = html.replace("boot.js?v=20", "boot.js?v=25")
-        html = html.replace("boot.css?v=21", "boot.css?v=25")
-        html = html.replace("boot.js?v=21", "boot.js?v=25")
-        html = html.replace("boot.css?v=22", "boot.css?v=25")
-        html = html.replace("boot.js?v=22", "boot.js?v=25")
-        html = html.replace("boot.css?v=23", "boot.css?v=25")
-        html = html.replace("boot.js?v=23", "boot.js?v=25")
-        html = html.replace("boot.css?v=24", "boot.css?v=25")
-        html = html.replace("boot.js?v=24", "boot.js?v=25")
+        html = re.sub(r"boot\.css\?v=\d+", f"boot.css?v={BOOT_V}", html)
+        html = re.sub(r"boot\.js\?v=\d+", f"boot.js?v={BOOT_V}", html)
         return html
     needle = '<script type="module"'
     if needle in html:

@@ -30,5 +30,9 @@ contextBridge.exposeInMainWorld("native", {
       onProgress(payload && payload.pct, payload && payload.label);
     });
   },
+  onAppUpdate: (onUpdate) => {
+    ipcRenderer.on("appUpdate", (_event, payload) => onUpdate(payload));
+  },
+  installAppUpdate: () => ipcRenderer.send("installAppUpdate"),
   isWayland: () => false,
 });

@@ -177,6 +177,18 @@
     return Boolean(root.querySelector("input, button, textarea, canvas, img"));
   }
 
+  function desktopVersion() {
+    try {
+      if (window.native && window.native.versions && typeof window.native.versions.desktop === "function") {
+        const ver = String(window.native.versions.desktop() || "").trim();
+        if (ver) return ver;
+      }
+    } catch {
+      /* ignore */
+    }
+    return "";
+  }
+
   function setSplashProgress(pct, label) {
     const bar = document.getElementById("muchat-splash-bar");
     const text = document.querySelector("#muchat-splash .muchat-splash-label");
@@ -192,10 +204,12 @@
     if (document.getElementById("muchat-splash") || splashHidden) return;
     const el = document.createElement("div");
     el.id = "muchat-splash";
+    const ver = desktopVersion();
     el.innerHTML =
       '<img src="/muchat-brand/icon.png" alt="Muchat" width="96" height="96">' +
       '<div class="muchat-splash-track"><div class="muchat-splash-bar is-indeterminate" id="muchat-splash-bar"></div></div>' +
-      '<p class="muchat-splash-label">Carregando…</p>';
+      '<p class="muchat-splash-label">Carregando…</p>' +
+      (ver ? `<p class="muchat-splash-version">Muchat ${ver}</p>` : "");
     (document.body || document.documentElement).appendChild(el);
     try {
       if (window.native && typeof window.native.onLoadProgress === "function") {
@@ -214,6 +228,64 @@
     if (el) el.remove();
     notifyNativeSplashDone();
     startVoiceStageOnce();
+  }
+
+  function ensureUpdateBar() {
+    let bar = document.getElementById("muchat-update-bar");
+    if (bar) return bar;
+    bar = document.createElement("div");
+    bar.id = "muchat-update-bar";
+    bar.hidden = true;
+    bar.innerHTML = "<span></span><button type=\"button\">Atualizar</button>";
+    bar.querySelector("button").addEventListener("click", () => {
+      if (window.native && typeof window.native.installAppUpdate === "function") {
+        window.native.installAppUpdate();
+      }
+    });
+    (document.body || document.documentElement).appendChild(bar);
+    return bar;
+  }
+
+  function syncUpdateBar(payload) {
+    if (!payload || !window.native) return;
+    const bar = ensureUpdateBar();
+    const text = bar.querySelector("span");
+    const btn = bar.querySelector("button");
+    const name = payload.version ? "Muchat " + payload.version : "Uma nova versão";
+    if (payload.state === "available") {
+      text.textContent = name + " disponível";
+      btn.textContent = "Atualizar";
+      btn.disabled = false;
+      bar.hidden = false;
+      return;
+    }
+    if (payload.state === "downloading") {
+      const pct = Math.round(Number(payload.percent) || 0);
+      text.textContent = "Baixando " + name + "… " + pct + "%";
+      btn.textContent = "Atualizar";
+      btn.disabled = true;
+      bar.hidden = false;
+      return;
+    }
+    if (payload.state === "ready") {
+      text.textContent = name + " pronta";
+      btn.textContent = "Reiniciar e instalar";
+      btn.disabled = false;
+      bar.hidden = false;
+      return;
+    }
+    if (payload.state === "error") {
+      text.textContent = "Não deu pra atualizar agora";
+      btn.textContent = "Tentar de novo";
+      btn.disabled = false;
+      bar.hidden = false;
+      return;
+    }
+    bar.hidden = true;
+  }
+
+  if (window.native && typeof window.native.onAppUpdate === "function") {
+    window.native.onAppUpdate(syncUpdateBar);
   }
 
   function startSplash() {
@@ -686,7 +758,7 @@
 
   function startScreenShare() {
     if (window.native && !nativeCanPickScreen()) {
-      showMuchatNotice("Este Muchat está velho. Fecha o app na bandeja e instala a 1.0.19.");
+      showMuchatNotice("Este Muchat está velho. Fecha o app na bandeja e instala a 1.0.20.");
       return;
     }
     if (window.MuchatVoice && typeof window.MuchatVoice.toggleScreenshare === "function") {
@@ -706,7 +778,7 @@
       }
       const target = event.target instanceof Element ? event.target : null;
       if (!target) return;
-      if (target.closest("#muchat-voice-dock, #muchat-notice, #muchat-splash, #muchat-screen-picker")) {
+      if (target.closest("#muchat-voice-dock, #muchat-notice, #muchat-splash, #muchat-screen-picker, #muchat-update-bar")) {
         return;
       }
       const actions = callActions();
@@ -940,7 +1012,7 @@
   }
 
   function rowLooksLikeVoice(el) {
-    if (!el || el.closest("#muchat-voice-dock, #muchat-screen-picker, #muchat-splash, #muchat-stage-handle")) {
+    if (!el || el.closest("#muchat-voice-dock, #muchat-screen-picker, #muchat-splash, #muchat-stage-handle, #muchat-update-bar")) {
       return false;
     }
     let hasHeadset = false;

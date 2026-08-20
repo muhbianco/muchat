@@ -46,6 +46,12 @@
       color: #8a8378;
       font-size: 13px;
     }
+    .version {
+      margin: 0;
+      color: #8a8378;
+      font-size: 12px;
+      letter-spacing: 0.02em;
+    }
     @keyframes muchat-load {
       0% { transform: translateX(-120%); }
       100% { transform: translateX(320%); }
@@ -57,11 +63,22 @@
     <img src="icon.png" alt="Muchat">
     <div class="track" aria-hidden="true"><div class="bar" id="bar"></div></div>
     <p class="label" id="label">Carregando…</p>
+    <p class="version" id="version"></p>
   </div>
   <script>
     (function () {
       const bar = document.getElementById("bar");
       const label = document.getElementById("label");
+      const versionEl = document.getElementById("version");
+      const fromQuery = new URLSearchParams(location.search).get("v");
+      const fromNative =
+        window.native &&
+        window.native.versions &&
+        typeof window.native.versions.desktop === "function"
+          ? window.native.versions.desktop()
+          : "";
+      const version = fromQuery || fromNative;
+      if (versionEl && version) versionEl.textContent = "Muchat " + version;
       if (!window.native || typeof window.native.onLoadProgress !== "function") return;
       window.native.onLoadProgress(function (pct, text) {
         if (bar && pct != null) {

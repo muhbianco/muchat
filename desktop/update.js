@@ -4,66 +4,96 @@ const { app } = require("electron");
 const { autoUpdater } = require("electron-updater");
 
 const FEED_URL = "https://chat.muhbianco.com.br/download/";
-const CHECK_MS = 12000;
-const DOWNLOAD_MS = 180000;
+const CHECK_EVERY_MS = 6 * 60 * 60 * 1000;
 
-function maybeInstallUpdate(onProgress, onWillQuit) {
-  if (!app.isPackaged) return Promise.resolve("skip");
+function setupAutoUpdate({ send, onWillQuit }) {
+  let downloaded = false;
+  let latestVersion = "";
+  let checking = false;
+  let installing = false;
 
-  return new Promise((resolve) => {
-    let settled = false;
-    let timer;
+  function emit(state, extra) {
+    send({
+      state,
+      version: latestVersion,
+      ...(extra || {}),
+    });
+  }
 
-    const finish = (result) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      autoUpdater.removeAllListeners("update-not-available");
-      autoUpdater.removeAllListeners("update-available");
-      autoUpdater.removeAllListeners("download-progress");
-      autoUpdater.removeAllListeners("update-downloaded");
-      autoUpdater.removeAllListeners("error");
-      resolve(result);
-    };
+  function configure() {
+    autoUpdater.autoDownload = false;
+    autoUpdater.autoInstallOnAppQuit = false;
+    autoUpdater.allowDowngrade = false;
+    autoUpdater.disableDifferentialDownload = true;
+    autoUpdater.verifyUpdateCodeSignature = false;
+    autoUpdater.setFeedURL({ provider: "generic", url: FEED_URL });
+  }
 
-    timer = setTimeout(() => finish("skip"), CHECK_MS);
+  function check() {
+    if (!app.isPackaged || checking || installing) return;
+    checking = true;
+    autoUpdater.checkForUpdates().finally(() => {
+      checking = false;
+    });
+  }
 
-    try {
-      autoUpdater.autoDownload = true;
-      autoUpdater.autoInstallOnAppQuit = false;
-      autoUpdater.allowDowngrade = false;
-      autoUpdater.disableDifferentialDownload = true;
-      autoUpdater.verifyUpdateCodeSignature = false;
-      autoUpdater.setFeedURL({ provider: "generic", url: FEED_URL });
-    } catch {
-      finish("skip");
+  async function install() {
+    if (!app.isPackaged || installing) return;
+    if (downloaded) {
+      installing = true;
+      if (typeof onWillQuit === "function") onWillQuit();
+      try {
+        autoUpdater.quitAndInstall(true, true);
+      } catch {
+        installing = false;
+        emit("error");
+      }
       return;
     }
+    installing = true;
+    try {
+      emit("downloading", { percent: 0 });
+      await autoUpdater.downloadUpdate();
+    } catch {
+      emit("error");
+    } finally {
+      installing = false;
+    }
+  }
 
-    autoUpdater.once("update-not-available", () => finish("skip"));
-    autoUpdater.once("update-available", () => {
-      clearTimeout(timer);
-      timer = setTimeout(() => finish("skip"), DOWNLOAD_MS);
-      onProgress(18, "Atualizando…");
-    });
-    autoUpdater.on("download-progress", (progress) => {
-      const pct = 18 + Math.max(0, Math.min(100, Number(progress.percent) || 0)) * 0.72;
-      onProgress(pct, "Atualizando…");
-    });
-    autoUpdater.once("update-downloaded", () => {
-      onProgress(96, "Instalando…");
-      try {
-        if (typeof onWillQuit === "function") onWillQuit();
-        autoUpdater.quitAndInstall(true, true);
-        finish("relaunch");
-      } catch {
-        finish("skip");
-      }
-    });
-    autoUpdater.once("error", () => finish("skip"));
+  if (!app.isPackaged) {
+    return { check() {}, install() {} };
+  }
 
-    autoUpdater.checkForUpdates().catch(() => finish("skip"));
+  try {
+    configure();
+  } catch {
+    return { check() {}, install() {} };
+  }
+
+  autoUpdater.on("update-available", (info) => {
+    latestVersion = (info && info.version) || latestVersion;
+    emit("available");
   });
+  autoUpdater.on("update-not-available", () => {
+    downloaded = false;
+    emit("none");
+  });
+  autoUpdater.on("download-progress", (progress) => {
+    emit("downloading", {
+      percent: Math.max(0, Math.min(100, Number(progress.percent) || 0)),
+    });
+  });
+  autoUpdater.on("update-downloaded", (info) => {
+    downloaded = true;
+    latestVersion = (info && info.version) || latestVersion;
+    emit("ready");
+  });
+  autoUpdater.on("error", () => emit("error"));
+
+  setInterval(() => check(), CHECK_EVERY_MS);
+
+  return { check, install };
 }
 
-module.exports = { maybeInstallUpdate, FEED_URL };
+module.exports = { setupAutoUpdate, FEED_URL };

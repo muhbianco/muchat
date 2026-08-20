@@ -4,7 +4,7 @@ const { app, BrowserWindow, Menu, Tray, session, shell, ipcMain } = require("ele
 const path = require("path");
 const { version } = require("./package.json");
 const { setupScreenShare } = require("./capture");
-const { maybeInstallUpdate } = require("./update");
+const { setupAutoUpdate } = require("./update");
 const { APP_ID, APP_ORIGIN, isAppOrigin, isAllowedPermission } = require("./permissions");
 const { shouldHideToTray } = require("./lifecycle");
 const { shouldDisableWgcCapturer } = require("./wgc");
@@ -28,6 +28,7 @@ let mainWindow = null;
 let tray = null;
 let isQuitting = false;
 let loadPhase = "splash";
+let appUpdater = null;
 
 function iconPath() {
   return path.join(__dirname, "icon.ico");
@@ -144,26 +145,20 @@ function createWindow() {
     },
   });
 
-  win.loadFile(path.join(__dirname, "splash.html"));
+  win.loadFile(path.join(__dirname, "splash.html"), { query: { v: version } });
   setLoadProgress(8, "Carregando…");
 
   win.webContents.on("did-finish-load", () => {
     if (win.isDestroyed()) return;
     if (loadPhase === "splash") {
-      loadPhase = "update";
-      setLoadProgress(12, "Verificando atualização…");
-      maybeInstallUpdate(setLoadProgress, () => {
-        isQuitting = true;
-      }).then((result) => {
-        clearLoadProgress();
-        if (win.isDestroyed() || result === "relaunch") return;
-        loadChat(win);
-      });
+      loadPhase = "chat";
+      loadChat(win);
       return;
     }
     if (loadPhase === "chat") {
       clearLoadProgress();
       paintVisibleWindow(win);
+      if (appUpdater) appUpdater.check();
     }
   });
 
@@ -244,10 +239,27 @@ if (!app.requestSingleInstanceLock()) {
     setupScreenShare(() => mainWindow);
     createTray();
     createWindow();
+    appUpdater = setupAutoUpdate({
+      send: (payload) => {
+        if (!mainWindow || mainWindow.isDestroyed()) return;
+        try {
+          mainWindow.webContents.send("appUpdate", payload);
+        } catch {
+          /* chat page may not be listening yet */
+        }
+      },
+      onWillQuit: () => {
+        isQuitting = true;
+      },
+    });
+    ipcMain.on("installAppUpdate", () => {
+      if (appUpdater) appUpdater.install();
+    });
     ipcMain.on("splashReady", () => {
       setLoadProgress(100);
       clearLoadProgress();
       paintVisibleWindow(mainWindow);
+      if (appUpdater) appUpdater.check();
     });
     app.on("activate", () => {
       showMainWindow();
