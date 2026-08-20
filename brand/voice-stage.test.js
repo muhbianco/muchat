@@ -46,6 +46,8 @@ test("splash no overlay; share vai para o picker do Stoat", () => {
   assert.match(js, /startScreenShare/);
   assert.match(js, /onceScreenPicker/);
   assert.match(js, /PointerEvent/);
+  assert.match(js, /pointerdown/);
+  assert.match(js, /stopImmediatePropagation/);
   assert.match(css, /muchat-splash-bar/);
   assert.match(js, /Carregando/);
   assert.match(js, /onLoadProgress/);

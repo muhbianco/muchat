@@ -697,6 +697,28 @@
     press(actions && actions.share && actions.share.btn);
   }
 
+  document.addEventListener(
+    "pointerdown",
+    (event) => {
+      if (!window.native) return;
+      if (!window.MuchatVoice || typeof window.MuchatVoice.toggleScreenshare !== "function") {
+        return;
+      }
+      const target = event.target instanceof Element ? event.target : null;
+      if (!target) return;
+      if (target.closest("#muchat-voice-dock, #muchat-notice, #muchat-splash, #muchat-screen-picker")) {
+        return;
+      }
+      const actions = callActions();
+      if (!actions || !actions.share || !actions.share.btn) return;
+      if (!actions.share.btn.contains(target)) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      startScreenShare();
+    },
+    true
+  );
+
   function findChannelSidebar() {
     const root = document.getElementById("root");
     const hint =
