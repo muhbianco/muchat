@@ -18,9 +18,10 @@ copy_overlay() {
   fi
   cp -a "$MUCHAT_DIR/Caddyfile" "$STOAT_DIR/Caddyfile"
   cp -a "$MUCHAT_DIR/compose.override.yml" "$STOAT_DIR/compose.override.yml"
-  rm -rf "$STOAT_DIR/brand" "$STOAT_DIR/invite"
+  rm -rf "$STOAT_DIR/brand" "$STOAT_DIR/invite" "$STOAT_DIR/invite-bot"
   cp -a "$MUCHAT_DIR/brand" "$STOAT_DIR/brand"
   cp -a "$MUCHAT_DIR/invite" "$STOAT_DIR/invite"
+  cp -a "$MUCHAT_DIR/invite-bot" "$STOAT_DIR/invite-bot"
   if [[ -n "$installer" ]]; then
     mkdir -p "$STOAT_DIR/brand/public/download"
     mv "$installer" "$STOAT_DIR/brand/public/download/Muchat-Setup.exe"
@@ -41,6 +42,11 @@ fi
 if ! grep -q '^PUBLIC_URL=' .env 2>/dev/null; then
   printf 'PUBLIC_URL=https://%s\n' "$DOMAIN" >> .env
 fi
+for key in STOAT_BOT_TOKEN MUHBIANCO_API_KEY MUCHAT_INVITE_EMAIL_WEBHOOK_URL MUCHAT_INVITE_EMAIL_WEBHOOK_SECRET; do
+  if ! grep -q "^${key}=" .env 2>/dev/null; then
+    printf '%s=\n' "$key" >> .env
+  fi
+done
 
 python3 - <<'PY'
 import re

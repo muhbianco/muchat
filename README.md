@@ -28,15 +28,33 @@ Pela API autenticada (admin, escopo `users:write`, JWT ou chave `mbk_`):
 
 `POST https://api.muhbianco.com.br/api/latest/muchat/invites`
 
-Body: `{"count":1}` — devolve o link `/login/create/<codigo>`.
+Body: `{"count":1}` — devolve o link `/login/create/<codigo>`. Sem `created_by` o convite é de ops (sem cota).
 
-HTTP custom no agente: Bearer = chave `mbk_` da conta admin (não use access token de 15 min).
+Bot no chat (conta owner → My Bots): cada usuário Stoat pode gerar **2** convites, listar e apagar os que ainda não foram usados. O processo `invite-bot` autentica na `api.muhbianco` com uma chave `mbk_` da conta admin (o mesmo tipo da API de feriados — `X-API-Key`). Body do bot:
+
+```json
+{"created_by":"<id do usuario stoat>","count":1,"email":"opcional@amigo.com"}
+```
+
+`GET /api/latest/muchat/invites?created_by=` lista. `DELETE /api/latest/muchat/invites/{code}?created_by=` apaga só unused.
+
+HTTP custom no agente: Bearer ou `X-API-Key` = chave `mbk_` da conta admin (não use access token de 15 min).
 
 Na VPS ainda vale:
 
 ```bash
 bash /usr/src/muchat/scripts/create-invite.sh
 ```
+
+### Bot de convites (uma vez)
+
+1. Logado como `contato@muhbianco.com.br`: Configurações → My Bots → Create Bot (ex.: `Convites`).
+2. Copy Token. Colar em `/usr/src/stoat/.env` como `STOAT_BOT_TOKEN`.
+3. Na conta admin da api.muhbianco, emitir mais uma chave `mbk_` (serviço feriados, como as outras). Colar como `MUHBIANCO_API_KEY`.
+4. `MUCHAT_INVITE_EMAIL_WEBHOOK_URL` e `MUCHAT_INVITE_EMAIL_WEBHOOK_SECRET` (mesmo Header Auth `HOOK` do n8n transacional; path `muchat-convite`).
+5. `bash /usr/src/muchat/scripts/bootstrap.sh` (copia `invite-bot/` pro overlay em `/usr/src/stoat`). Depois, no stoat: `docker compose -p stoat build invite invite-bot && docker compose -p stoat up -d --remove-orphans`
+
+O bot entra sozinho em todos os servidores (poll no Mongo a cada 30s). Conversa é por DM.
 
 ## Dev local (fork + .exe sem deploy)
 

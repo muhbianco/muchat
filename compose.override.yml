@@ -56,6 +56,36 @@ services:
           cpus: "0.10"
           memory: 64M
 
+  invite-bot:
+    image: muchat-invite-bot:latest
+    container_name: muchat-invite-bot
+    build:
+      context: .
+      dockerfile: invite-bot/Dockerfile
+    environment:
+      MONGO_URL: mongodb://database:27017
+      STOAT_API_URL: ${STOAT_API_URL:-http://api:14702}
+      STOAT_WS_URL: ${STOAT_WS_URL:-ws://events:14703}
+      STOAT_BOT_TOKEN: ${STOAT_BOT_TOKEN:-}
+      MUHBIANCO_API_URL: ${MUHBIANCO_API_URL:-https://api.muhbianco.com.br}
+      MUHBIANCO_API_KEY: ${MUHBIANCO_API_KEY:-}
+      EMAIL_WEBHOOK_URL: ${MUCHAT_INVITE_EMAIL_WEBHOOK_URL:-}
+      EMAIL_WEBHOOK_SECRET: ${MUCHAT_INVITE_EMAIL_WEBHOOK_SECRET:-}
+    networks:
+      default: {}
+      chatbot: {}
+    restart: always
+    depends_on:
+      - database
+      - api
+      - events
+      - invite
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+
   livekit:
     ports:
       - "3478:3478/udp"
