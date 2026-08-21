@@ -17,9 +17,11 @@ RUN mkdir -p ${ANDROID_HOME}/cmdline-tools \
 ENV PATH=${PATH}:${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools
 
 RUN mkdir -p ${ANDROID_HOME}/licenses \
-    && printf '%s\n' '24333f8a63b6825ea9c5514f07c261b4ee4f2d' > ${ANDROID_HOME}/licenses/android-sdk-license \
+    && printf '%s\n' '24333f8a63b6825ea9c5514f83c2829b004d1fee' > ${ANDROID_HOME}/licenses/android-sdk-license \
     && printf '%s\n' '84831b9409646161da1ed394158780c1f6dc24' > ${ANDROID_HOME}/licenses/android-sdk-preview-license \
-    && sdkmanager --sdk_root=${ANDROID_HOME} "platforms;android-35" "build-tools;35.0.0"
+    && sdkmanager --sdk_root=${ANDROID_HOME} "platforms;android-35" "build-tools;35.0.0" \
+    && test -d ${ANDROID_HOME}/platforms/android-35 \
+    && test -d ${ANDROID_HOME}/build-tools/35.0.0
 
 RUN wget -q https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip -O /tmp/gradle.zip \
     && unzip -q /tmp/gradle.zip -d /opt \
