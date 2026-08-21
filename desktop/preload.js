@@ -7,6 +7,8 @@ const { contextBridge, ipcRenderer } = require("electron");
 // exposeInMainWorld runs and leaves window.native undefined, so the version
 // arrives through additionalArguments instead of package.json.
 const VERSION_FLAG = "--muchat-version=";
+const FRAME_FLAG = "--muchat-frame=custom";
+const ROUND_FLAG = "--muchat-round=";
 
 /** Desktop version injected by the main process into the renderer argv. */
 function desktopVersion() {
@@ -14,7 +16,17 @@ function desktopVersion() {
   return flag ? flag.slice(VERSION_FLAG.length) : "";
 }
 
+/** Custom frame flags; the sandboxed preload cannot require chrome.js. */
+function chromeFromArgv() {
+  const roundFlag = process.argv.find((arg) => arg.startsWith(ROUND_FLAG));
+  return {
+    customFrame: process.argv.includes(FRAME_FLAG),
+    round: roundFlag ? roundFlag.slice(ROUND_FLAG.length) : "none",
+  };
+}
+
 const version = desktopVersion();
+const chrome = chromeFromArgv();
 
 contextBridge.exposeInMainWorld("native", {
   versions: {
@@ -26,6 +38,13 @@ contextBridge.exposeInMainWorld("native", {
   minimise: () => ipcRenderer.send("minimise"),
   maximise: () => ipcRenderer.send("maximise"),
   close: () => ipcRenderer.send("close"),
+  hasCustomFrame: () => chrome.customFrame,
+  usesCssRoundedCorners: () => chrome.round === "css",
+  getWindowState: () => ipcRenderer.invoke("windowState"),
+  onWindowState: (onState) => {
+    ipcRenderer.on("windowState", (_event, payload) => onState(payload));
+  },
+  setWindowBackground: (color) => ipcRenderer.send("setWindowBackground", color),
 
   // Screen share is arm-then-capture: the renderer lists sources, shows its own
   // picker, arms the chosen source and only then calls getDisplayMedia, which

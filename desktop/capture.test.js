@@ -61,6 +61,7 @@ test("o pacote inclui preload e captura de tela", () => {
   assert.ok(pkg.build.files.includes("capture.js"));
   assert.ok(pkg.build.files.includes("capture-map.js"));
   assert.ok(pkg.build.files.includes("wgc.js"));
+  assert.ok(pkg.build.files.includes("chrome.js"));
   assert.ok(pkg.build.files.includes("splash.html"));
   assert.ok(pkg.build.files.includes("update.js"));
   // Harness de dev e de teste não vão pro instalador.

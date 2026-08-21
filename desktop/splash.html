@@ -8,14 +8,67 @@
       margin: 0;
       height: 100%;
       background: #141210;
-      display: grid;
-      place-items: center;
       font-family: system-ui, sans-serif;
     }
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+    html.muchat-css-round:not(.muchat-maximized),
+    html.muchat-css-round:not(.muchat-maximized) body {
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .chrome {
+      display: none;
+      flex-shrink: 0;
+      height: 29px;
+      align-items: center;
+      color: #8a8378;
+      background: #1c1a18;
+      user-select: none;
+      -webkit-app-region: drag;
+      -webkit-user-select: none;
+    }
+    html.muchat-custom-frame .chrome {
+      display: flex;
+    }
+    .chrome-title {
+      padding: 0 10px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #f3efe6;
+    }
+    .chrome-drag {
+      flex: 1;
+      height: 100%;
+    }
+    .chrome-btn {
+      -webkit-app-region: no-drag;
+      width: 44px;
+      height: 100%;
+      border: 0;
+      padding: 0;
+      color: #c9c2b6;
+      background: transparent;
+      cursor: pointer;
+      font-size: 12px;
+      line-height: 29px;
+    }
+    .chrome-btn:hover {
+      background: #2b2926;
+      color: #f3efe6;
+    }
+    .chrome-btn.close:hover {
+      background: #c42b1c;
+      color: #fff;
+    }
     .box {
+      flex: 1;
       display: flex;
       flex-direction: column;
       align-items: center;
+      justify-content: center;
       gap: 22px;
     }
     img {
@@ -59,6 +112,13 @@
   </style>
 </head>
 <body>
+  <div class="chrome" id="chrome">
+    <span class="chrome-title">Muchat</span>
+    <div class="chrome-drag"></div>
+    <button type="button" class="chrome-btn" id="min" aria-label="Minimizar">&#x2013;</button>
+    <button type="button" class="chrome-btn" id="max" aria-label="Maximizar">&#x2610;</button>
+    <button type="button" class="chrome-btn close" id="close" aria-label="Fechar">&#x2715;</button>
+  </div>
   <div class="box">
     <img src="icon.png" alt="Muchat">
     <div class="track" aria-hidden="true"><div class="bar" id="bar"></div></div>
@@ -71,16 +131,50 @@
       const label = document.getElementById("label");
       const versionEl = document.getElementById("version");
       const fromQuery = new URLSearchParams(location.search).get("v");
+      const native = window.native;
       const fromNative =
-        window.native &&
-        window.native.versions &&
-        typeof window.native.versions.desktop === "function"
-          ? window.native.versions.desktop()
+        native &&
+        native.versions &&
+        typeof native.versions.desktop === "function"
+          ? native.versions.desktop()
           : "";
       const version = fromQuery || fromNative;
       if (versionEl && version) versionEl.textContent = "Muchat " + version;
-      if (!window.native || typeof window.native.onLoadProgress !== "function") return;
-      window.native.onLoadProgress(function (pct, text) {
+
+      if (native && typeof native.hasCustomFrame === "function" && native.hasCustomFrame()) {
+        document.documentElement.classList.add("muchat-custom-frame");
+      }
+      if (native && typeof native.usesCssRoundedCorners === "function" && native.usesCssRoundedCorners()) {
+        document.documentElement.classList.add("muchat-css-round");
+      }
+      function applyMaximised(maximised) {
+        document.documentElement.classList.toggle("muchat-maximized", Boolean(maximised));
+      }
+      if (native && typeof native.onWindowState === "function") {
+        native.onWindowState(function (state) {
+          applyMaximised(state && state.maximised);
+        });
+      }
+      if (native && typeof native.getWindowState === "function") {
+        native.getWindowState().then(function (state) {
+          applyMaximised(state && state.maximised);
+        }).catch(function () { /* older shell */ });
+      }
+      const min = document.getElementById("min");
+      const max = document.getElementById("max");
+      const close = document.getElementById("close");
+      if (min && native && typeof native.minimise === "function") {
+        min.addEventListener("click", function () { native.minimise(); });
+      }
+      if (max && native && typeof native.maximise === "function") {
+        max.addEventListener("click", function () { native.maximise(); });
+      }
+      if (close && native && typeof native.close === "function") {
+        close.addEventListener("click", function () { native.close(); });
+      }
+
+      if (!native || typeof native.onLoadProgress !== "function") return;
+      native.onLoadProgress(function (pct, text) {
         if (bar && pct != null) {
           bar.classList.add("is-pct");
           bar.style.width = Math.max(8, Math.min(100, Number(pct) || 0)) + "%";

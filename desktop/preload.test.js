@@ -53,6 +53,8 @@ test("o preload sandboxed expõe window.native de verdade", (t) => {
   assert.equal(bridge.type, "object", `window.native não foi exposto: ${line[1]}`);
   assert.equal(bridge.version, "9.9.9-smoke");
   assert.ok(bridge.chrome, "versions.chrome() deveria responder");
+  assert.equal(bridge.hasCustomFrame, true);
+  assert.equal(bridge.usesCssRoundedCorners, true);
 
   for (const api of [
     "versions",
@@ -66,6 +68,11 @@ test("o preload sandboxed expõe window.native de verdade", (t) => {
     "onAppUpdate",
     "getUpdateState",
     "installAppUpdate",
+    "hasCustomFrame",
+    "usesCssRoundedCorners",
+    "getWindowState",
+    "onWindowState",
+    "setWindowBackground",
   ]) {
     assert.ok(bridge.keys.includes(api), `falta ${api} no bridge`);
   }

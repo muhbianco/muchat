@@ -24,7 +24,11 @@ app.whenReady().then(async () => {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       sandbox: true,
-      additionalArguments: [`--muchat-version=${VERSION}`],
+      additionalArguments: [
+        `--muchat-version=${VERSION}`,
+        "--muchat-frame=custom",
+        "--muchat-round=css",
+      ],
     },
   });
 
@@ -35,6 +39,8 @@ app.whenReady().then(async () => {
       keys: window.native ? Object.keys(window.native) : [],
       version: window.native ? window.native.versions.desktop() : null,
       chrome: window.native ? window.native.versions.chrome() : null,
+      hasCustomFrame: window.native ? window.native.hasCustomFrame() : null,
+      usesCssRoundedCorners: window.native ? window.native.usesCssRoundedCorners() : null,
     }))()`);
     report(bridge);
     app.exit(0);

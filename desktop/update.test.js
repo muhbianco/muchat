@@ -15,6 +15,7 @@ test("feed de update é o /download do chat, sem instalar sozinho no splash", ()
   assert.match(src, /downloadUpdate\(\)/);
   assert.match(src, /update-available/);
   assert.match(src, /onWillQuit/);
+  assert.match(src, /await autoUpdater\.downloadUpdate\(\)[\s\S]{0,400}quitAndInstall\(true,\s*true\)/);
   assert.doesNotMatch(src, /Atualizando/);
 });
 

@@ -1,14 +1,14 @@
 {
   "name": "muchat",
   "productName": "Muchat",
-  "version": "1.0.21",
+  "version": "1.0.22",
   "private": true,
   "description": "Muchat desktop",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "dev": "node dev.js",
-    "test": "node --test permissions.test.js afterPack.test.js lifecycle.test.js capture.test.js update.test.js preload.test.js",
+    "test": "node --test permissions.test.js afterPack.test.js lifecycle.test.js capture.test.js update.test.js preload.test.js chrome.test.js",
     "dist": "electron-builder --win nsis --x64"
   },
   "author": "Muchat",
@@ -31,6 +31,7 @@
       "capture.js",
       "capture-map.js",
       "wgc.js",
+      "chrome.js",
       "preload.js",
       "update.js",
       "splash.html",

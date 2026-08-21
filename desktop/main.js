@@ -1,6 +1,7 @@
 "use strict";
 
 const { app, BrowserWindow, Menu, Tray, session, shell, ipcMain } = require("electron");
+const os = require("os");
 const path = require("path");
 const { version } = require("./package.json");
 const { setupScreenShare } = require("./capture");
@@ -14,6 +15,15 @@ const {
 } = require("./permissions");
 const { shouldHideToTray } = require("./lifecycle");
 const { shouldDisableWgcCapturer } = require("./wgc");
+const {
+  DEFAULT_BG,
+  chromeArgvFlags,
+  isReloadKey,
+  roundMode,
+  sanitiseWindowBackground,
+  windowBackgroundForState,
+  windowChromeOptions,
+} = require("./chrome");
 
 app.setName("Muchat");
 if (process.platform === "win32") {
@@ -35,6 +45,8 @@ let tray = null;
 let isQuitting = false;
 let loadPhase = "splash";
 let appUpdater = null;
+const CHROME_ROUND = roundMode(os.release(), process.platform);
+let lastWindowBg = DEFAULT_BG;
 
 function iconPath() {
   return path.join(__dirname, "icon.ico");
@@ -96,6 +108,26 @@ function hideToTray() {
   mainWindow.setSkipTaskbar(true);
 }
 
+function sendWindowState(win) {
+  if (!win || win.isDestroyed()) return;
+  try {
+    win.webContents.send("windowState", { maximised: win.isMaximized() });
+  } catch {
+    /* splash / chat may not have a listener yet */
+  }
+}
+
+function applyWindowBackground(win) {
+  if (!win || win.isDestroyed()) return;
+  try {
+    win.setBackgroundColor(
+      windowBackgroundForState(lastWindowBg, CHROME_ROUND, win.isMaximized()),
+    );
+  } catch {
+    /* ignore */
+  }
+}
+
 async function loadChat(win) {
   loadPhase = "chat";
   setLoadProgress(30, "Carregando…");
@@ -142,18 +174,39 @@ function createWindow() {
     height: 800,
     minWidth: 800,
     minHeight: 600,
-    backgroundColor: "#141210",
     title: IS_DEV_ORIGIN ? `Muchat ${version} — dev` : `Muchat ${version}`,
     icon: iconPath(),
-    autoHideMenuBar: true,
     show: true,
+    ...windowChromeOptions({
+      platform: process.platform,
+      release: os.release(),
+      backgroundColor: lastWindowBg,
+    }),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       sandbox: true,
       backgroundThrottling: false,
-      additionalArguments: [`--muchat-version=${version}`],
+      additionalArguments: [
+        `--muchat-version=${version}`,
+        ...chromeArgvFlags(process.platform, os.release()),
+      ],
     },
+  });
+
+  if (!IS_DEV_ORIGIN) {
+    win.webContents.on("before-input-event", (event, input) => {
+      if (isReloadKey(input)) event.preventDefault();
+    });
+  }
+
+  win.on("maximize", () => {
+    applyWindowBackground(win);
+    sendWindowState(win);
+  });
+  win.on("unmaximize", () => {
+    applyWindowBackground(win);
+    sendWindowState(win);
   });
 
   win.loadFile(path.join(__dirname, "splash.html"), { query: { v: version } });
@@ -195,9 +248,17 @@ function createWindow() {
       "data:text/html;charset=utf-8," +
         encodeURIComponent(
           `<!doctype html><title>Muchat ${version}</title>` +
-            `<body style="font-family:system-ui;background:#141210;color:#f3efe6;padding:2rem">` +
-            `<h1>Muchat ${version}</h1><p>Não carregou o chat (${code}).</p>` +
-            `<p>${desc}</p><p>${url}</p></body>`
+            `<style>html,body{margin:0;height:100%;background:#141210;color:#f3efe6;font-family:system-ui}` +
+            `body{display:flex;flex-direction:column}` +
+            `.chrome{display:flex;height:29px;align-items:center;background:#1c1a18;-webkit-app-region:drag}` +
+            `.chrome span{padding:0 10px;font-size:12px}` +
+            `.chrome button{-webkit-app-region:no-drag;width:44px;height:100%;border:0;background:transparent;color:#c9c2b6;cursor:pointer;margin-left:auto}` +
+            `.copy{padding:2rem;flex:1}</style>` +
+            `<div class="chrome"><span>Muchat</span>` +
+            `<button type="button" id="close" aria-label="Fechar">&#x2715;</button></div>` +
+            `<div class="copy"><h1>Muchat ${version}</h1><p>Não carregou o chat (${code}).</p>` +
+            `<p>${desc}</p><p>${url}</p></div>` +
+            `<script>document.getElementById("close").onclick=function(){window.native&&window.native.close()}</script>`
         )
     );
   });
@@ -247,9 +308,21 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   app.whenReady().then(() => {
+    Menu.setApplicationMenu(null);
     grantAppPermissions();
     setupScreenShare(() => mainWindow);
     createTray();
+    ipcMain.removeHandler("windowState");
+    ipcMain.handle("windowState", () => {
+      if (!mainWindow || mainWindow.isDestroyed()) return { maximised: false };
+      return { maximised: mainWindow.isMaximized() };
+    });
+    ipcMain.on("setWindowBackground", (_event, color) => {
+      const safe = sanitiseWindowBackground(color);
+      if (!safe) return;
+      lastWindowBg = safe;
+      applyWindowBackground(mainWindow);
+    });
     createWindow();
     appUpdater = setupAutoUpdate({
       send: (payload) => {

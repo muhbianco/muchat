@@ -61,10 +61,21 @@ function setupAutoUpdate({ send, onWillQuit }) {
     try {
       emit("downloading", { percent: 0 });
       await autoUpdater.downloadUpdate();
+      if (!downloaded) {
+        installing = false;
+        emit("error");
+        return;
+      }
+      if (typeof onWillQuit === "function") onWillQuit();
+      try {
+        autoUpdater.quitAndInstall(true, true);
+      } catch {
+        installing = false;
+        emit("error");
+      }
     } catch {
-      emit("error");
-    } finally {
       installing = false;
+      emit("error");
     }
   }
 
