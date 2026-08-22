@@ -5,26 +5,37 @@ DOMAIN="${DOMAIN:-chat.muhbianco.com.br}"
 STOAT_DIR="${STOAT_DIR:-/usr/src/stoat}"
 MUCHAT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
+command -v rsync >/dev/null || { echo "rsync is required to copy the overlay without breaking Caddy bind mounts"; exit 1; }
+
 mkdir -p "$STOAT_DIR"
 if [[ ! -f "$STOAT_DIR/compose.yml" ]]; then
   git clone --depth 1 https://github.com/stoatchat/self-hosted.git "$STOAT_DIR"
 fi
 
+# brand/public is bind-mounted into Caddy. Replacing that inode (rm -rf brand)
+# leaves the container serving an empty deleted directory until Caddy is recreated.
 copy_overlay() {
-  installer=""
-  if [[ -f "$STOAT_DIR/brand/public/download/Muchat-Setup.exe" ]]; then
-    installer="$(mktemp)"
-    cp -a "$STOAT_DIR/brand/public/download/Muchat-Setup.exe" "$installer"
-  fi
   cp -a "$MUCHAT_DIR/Caddyfile" "$STOAT_DIR/Caddyfile"
   cp -a "$MUCHAT_DIR/compose.override.yml" "$STOAT_DIR/compose.override.yml"
-  rm -rf "$STOAT_DIR/brand" "$STOAT_DIR/invite" "$STOAT_DIR/invite-bot"
-  cp -a "$MUCHAT_DIR/brand" "$STOAT_DIR/brand"
+  mkdir -p "$STOAT_DIR/brand/public/download"
+  rsync -a --delete \
+    --exclude 'public/download/*.exe' \
+    --exclude 'public/download/*.apk' \
+    --exclude 'public/download/*.yml' \
+    --exclude 'public/download/*.blockmap' \
+    "$MUCHAT_DIR/brand/" "$STOAT_DIR/brand/"
+  rm -rf "$STOAT_DIR/invite" "$STOAT_DIR/invite-bot"
   cp -a "$MUCHAT_DIR/invite" "$STOAT_DIR/invite"
   cp -a "$MUCHAT_DIR/invite-bot" "$STOAT_DIR/invite-bot"
-  if [[ -n "$installer" ]]; then
-    mkdir -p "$STOAT_DIR/brand/public/download"
-    mv "$installer" "$STOAT_DIR/brand/public/download/Muchat-Setup.exe"
+}
+
+heal_caddy_bind() {
+  local host_ino container_ino
+  host_ino="$(stat -c '%i' "$STOAT_DIR/brand/public" 2>/dev/null || true)"
+  container_ino="$(docker exec stoat-caddy-1 stat -c '%i' /muchat-public 2>/dev/null || true)"
+  if [[ -n "$host_ino" && -n "$container_ino" && "$host_ino" != "$container_ino" ]]; then
+    echo "caddy bind mount stale ($container_ino != $host_ino); recreating"
+    docker compose -p stoat up -d --force-recreate --no-deps caddy
   fi
 }
 
@@ -80,4 +91,5 @@ if "udp_port:" not in t:
 print("patched Revolt.toml and livekit.yml")
 PY
 
+heal_caddy_bind
 echo "overlay pronto em $STOAT_DIR"
